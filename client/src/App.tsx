@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react'
 
-type PriceRow = {
-  athlete_id: number
-  name: string
-  sport: string
-  price: number | null
-}
-
-type MarketPrices = {
-  current_step: number
-  prices: PriceRow[]
-}
+import Header from './components/Header'
+import MarketList from './components/MarketList'
+import './styles/pixel.css'
+import type { MarketPrices } from './types'
 
 const POLL_MS = 2000
 
@@ -43,20 +36,13 @@ export default function App() {
     }
   }, [])
 
-  if (error) return <p>Error: {error}</p>
-  if (!market) return <p>Loading…</p>
+  if (error) return <p className="state">ERROR: {error}</p>
+  if (!market) return <p className="state">LOADING…</p>
 
   return (
-    <div>
-      <h1>Trade Superstars</h1>
-      <p>Step: {market.current_step}</p>
-      <ul>
-        {market.prices.map((row) => (
-          <li key={row.athlete_id}>
-            {row.name} — {row.price === null ? 'no price' : `$${row.price.toFixed(2)}`}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <>
+      <Header step={market.current_step} />
+      <MarketList rows={market.prices} />
+    </>
   )
 }
