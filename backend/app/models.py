@@ -129,3 +129,14 @@ class GameLog(Base):
     perf_score: Mapped[Decimal] = mapped_column(Numeric(8, 2))
 
     athlete: Mapped["Athlete"] = relationship(back_populates="game_logs")
+
+
+class MarketState(Base):
+    """Single-row market clock: where the simulation is and what seeds it."""
+
+    __tablename__ = "market_state"
+    __table_args__ = (CheckConstraint("id = 1", name="market_state_single_row"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    current_step: Mapped[int] = mapped_column(default=0)
+    seed: Mapped[int] = mapped_column()
