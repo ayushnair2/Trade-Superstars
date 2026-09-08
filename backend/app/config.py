@@ -30,3 +30,6 @@ TETHER = 0.05
 TICK_JITTER = 0.01
 PRICE_FLOOR = 1.0
 MARKET_SEED = 1337
+# How many recent prices the dashboard sparkline shows, and the lookback
+# distance for percent change.
+SPARK_WINDOW = 12
