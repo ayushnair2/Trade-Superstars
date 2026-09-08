@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: trade-superstars-db
+    environment:
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: trade_superstars
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader -d trade_superstars"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:

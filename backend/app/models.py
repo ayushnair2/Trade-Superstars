@@ -1,0 +1,84 @@
+import enum
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Numeric, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db import Base
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class Side(enum.Enum):
+    buy = "buy"
+    sell = "sell"
+
+
+class Athlete(Base):
+    __tablename__ = "athletes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    sport: Mapped[str] = mapped_column(String(40))
+    team: Mapped[str] = mapped_column(String(80))
+    external_ref: Mapped[str] = mapped_column(String(120), unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+    prices: Mapped[list["Price"]] = relationship(back_populates="athlete")
+    trades: Mapped[list["Trade"]] = relationship(back_populates="athlete")
+    holding: Mapped["Holding | None"] = relationship(back_populates="athlete")
+
+
+class Price(Base):
+    __tablename__ = "prices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
+
+    athlete: Mapped["Athlete"] = relationship(back_populates="prices")
+
+
+class Trade(Base):
+    __tablename__ = "trades"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    side: Mapped[Side] = mapped_column(Enum(Side, name="trade_side"))
+    quantity: Mapped[int] = mapped_column()
+    price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    executed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+    athlete: Mapped["Athlete"] = relationship(back_populates="trades")
+
+
+class Holding(Base):
+    __tablename__ = "holdings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"), unique=True)
+    quantity: Mapped[int] = mapped_column(default=0)
+    avg_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
+
+    athlete: Mapped["Athlete"] = relationship(back_populates="holding")
+
+
+class Portfolio(Base):
+    """Single-row table: this is a solo sim, so there is exactly one portfolio."""
+
+    __tablename__ = "portfolio"
+    __table_args__ = (CheckConstraint("id = 1", name="portfolio_single_row"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    cash: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("100000"))
+
