@@ -1,8 +1,17 @@
 import enum
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Numeric, String
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -32,6 +41,7 @@ class Athlete(Base):
     prices: Mapped[list["Price"]] = relationship(back_populates="athlete")
     trades: Mapped[list["Trade"]] = relationship(back_populates="athlete")
     holding: Mapped["Holding | None"] = relationship(back_populates="athlete")
+    stats: Mapped[list["AthleteStat"]] = relationship(back_populates="athlete")
 
 
 class Price(Base):
@@ -82,3 +92,19 @@ class Portfolio(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     cash: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("100000"))
 
+
+class AthleteStat(Base):
+    """Per-sport stat store: each sport writes whatever stat_keys it has."""
+
+    __tablename__ = "athlete_stats"
+    __table_args__ = (
+        UniqueConstraint("athlete_id", "stat_key", name="uq_athlete_stat_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    stat_key: Mapped[str] = mapped_column(String(40))
+    value: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    as_of: Mapped[date] = mapped_column(Date)
+
+    athlete: Mapped["Athlete"] = relationship(back_populates="stats")
