@@ -42,6 +42,7 @@ class Athlete(Base):
     trades: Mapped[list["Trade"]] = relationship(back_populates="athlete")
     holding: Mapped["Holding | None"] = relationship(back_populates="athlete")
     stats: Mapped[list["AthleteStat"]] = relationship(back_populates="athlete")
+    game_logs: Mapped[list["GameLog"]] = relationship(back_populates="athlete")
 
 
 class Price(Base):
@@ -108,3 +109,23 @@ class AthleteStat(Base):
     as_of: Mapped[date] = mapped_column(Date)
 
     athlete: Mapped["Athlete"] = relationship(back_populates="stats")
+
+
+class GameLog(Base):
+    """One athlete's single game. game_index 0 is their oldest game this season."""
+
+    __tablename__ = "game_logs"
+    __table_args__ = (
+        UniqueConstraint("athlete_id", "game_index", name="uq_athlete_game_index"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    game_index: Mapped[int] = mapped_column()
+    game_date: Mapped[date] = mapped_column(Date)
+    pts: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    reb: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    ast: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    perf_score: Mapped[Decimal] = mapped_column(Numeric(8, 2))
+
+    athlete: Mapped["Athlete"] = relationship(back_populates="game_logs")
