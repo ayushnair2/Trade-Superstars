@@ -3,7 +3,7 @@ import { useState } from 'react'
 type Props = {
   athleteId: number
   held: number
-  onTraded: () => void
+  onTraded: (tradeId: number) => void
 }
 
 export default function TradeControls({ athleteId, held, onTraded }: Props) {
@@ -32,7 +32,8 @@ export default function TradeControls({ athleteId, held, onTraded }: Props) {
         return
       }
       setError(null)
-      onTraded()
+      const body = await res.json().catch(() => null)
+      onTraded(body?.trade_id)
     } catch (err) {
       setError(String(err))
     } finally {

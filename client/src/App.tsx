@@ -3,10 +3,14 @@ import { useCallback, useEffect, useState } from 'react'
 import Header from './components/Header'
 import Landing from './components/Landing'
 import LessonBox from './components/LessonBox'
+import Mascot from './components/Mascot'
+import SettingsPanel from './components/SettingsPanel'
 import MarketList from './components/MarketList'
 import TradePanel from './components/TradePanel'
 import './styles/pixel.css'
 import type { HistoryPoint, MarketPrices, Portfolio } from './types'
+import { useLesson } from './useLesson'
+import { useSettings } from './useSettings'
 
 const POLL_MS = 2000
 const HISTORY_LIMIT = 60
@@ -20,11 +24,26 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryPoint[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settings = useSettings()
+  const { state: lessonState, showForTrade, dismiss: dismissLesson } = useLesson({
+    enabled: settings.lessonsEnabled,
+    cooldownMs: settings.lessonCooldownMs,
+  })
 
   const loadPortfolio = useCallback(async () => {
     const res = await fetch('/portfolio')
     if (res.ok) setPortfolio(await res.json())
   }, [])
+
+  const handleTraded = useCallback(
+    (tradeId: number) => {
+      loadPortfolio()
+      // fire-and-forget: the lesson never gates the trade
+      if (tradeId) showForTrade(tradeId)
+    },
+    [loadPortfolio, showForTrade],
+  )
 
   useEffect(() => {
     if (view !== 'game') return
@@ -85,7 +104,7 @@ export default function App() {
 
   return (
     <>
-      <Header portfolio={portfolio} />
+      <Header portfolio={portfolio} onOpenSettings={() => setSettingsOpen(true)} />
       <div className="layout">
         <MarketList
           rows={market.prices}
@@ -96,10 +115,14 @@ export default function App() {
           athlete={selected}
           history={history}
           held={held}
-          onTraded={loadPortfolio}
+          onTraded={handleTraded}
         />
       </div>
       <LessonBox />
+      <Mascot state={lessonState} onDismiss={dismissLesson} />
+      {settingsOpen && (
+        <SettingsPanel settings={settings} onClose={() => setSettingsOpen(false)} />
+      )}
     </>
   )
 }

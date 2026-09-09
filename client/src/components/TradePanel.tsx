@@ -8,7 +8,7 @@ type Props = {
   athlete: PriceRow | null
   history: HistoryPoint[]
   held: number
-  onTraded: () => void
+  onTraded: (tradeId: number) => void
 }
 
 export default function TradePanel({ athlete, history, held, onTraded }: Props) {

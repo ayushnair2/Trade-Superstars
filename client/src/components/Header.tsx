@@ -3,9 +3,10 @@ import type { Portfolio } from '../types'
 
 type Props = {
   portfolio: Portfolio | null
+  onOpenSettings: () => void
 }
 
-export default function Header({ portfolio }: Props) {
+export default function Header({ portfolio, onOpenSettings }: Props) {
   return (
     <div className="header">
       <div className="h1">TRADE SUPERSTARS</div>
@@ -20,6 +21,19 @@ export default function Header({ portfolio }: Props) {
             {portfolio ? money(portfolio.total_value) : '--'}
           </div>
         </div>
+        <button
+          className="gear"
+          onClick={onOpenSettings}
+          aria-label="Settings"
+          title="Settings"
+        >
+          <svg width="18" height="18" viewBox="0 0 9 9" shapeRendering="crispEdges">
+            <rect x="3" y="0" width="3" height="9" fill="currentColor" />
+            <rect x="0" y="3" width="9" height="3" fill="currentColor" />
+            <rect x="1" y="1" width="7" height="7" fill="currentColor" />
+            <rect x="3" y="3" width="3" height="3" fill="var(--panel)" />
+          </svg>
+        </button>
       </div>
     </div>
   )
