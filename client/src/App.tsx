@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { api } from './api'
 import Header from './components/Header'
 import Landing from './components/Landing'
 import LessonBox from './components/LessonBox'
@@ -32,7 +33,7 @@ export default function App() {
   })
 
   const loadPortfolio = useCallback(async () => {
-    const res = await fetch('/portfolio')
+    const res = await fetch(api('/portfolio'))
     if (res.ok) setPortfolio(await res.json())
   }, [])
 
@@ -52,8 +53,8 @@ export default function App() {
     async function load() {
       try {
         const [pricesRes, portfolioRes] = await Promise.all([
-          fetch('/market/prices'),
-          fetch('/portfolio'),
+          fetch(api('/market/prices')),
+          fetch(api('/portfolio')),
         ])
         if (!pricesRes.ok) throw new Error(`HTTP ${pricesRes.status}`)
         const prices: MarketPrices = await pricesRes.json()
@@ -81,7 +82,7 @@ export default function App() {
     if (view !== 'game' || selectedId === null) return
     let cancelled = false
 
-    fetch(`/athletes/${selectedId}/history?limit=${HISTORY_LIMIT}`)
+    fetch(api(`/athletes/${selectedId}/history?limit=${HISTORY_LIMIT}`))
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data) setHistory(data.history)

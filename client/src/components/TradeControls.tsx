@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { api } from '../api'
+
 type Props = {
   athleteId: number
   held: number
@@ -22,7 +24,7 @@ export default function TradeControls({ athleteId, held, onTraded }: Props) {
     setBusy(true)
     try {
       const res = await fetch(
-        `/portfolio/${side}?athlete_id=${athleteId}&quantity=${qty}`,
+        api(`/portfolio/${side}?athlete_id=${athleteId}&quantity=${qty}`),
         { method: 'POST' },
       )
       if (!res.ok) {
