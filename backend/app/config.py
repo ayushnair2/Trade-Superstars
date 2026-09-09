@@ -35,3 +35,12 @@ MARKET_SEED = 1337
 SPARK_WINDOW = 12
 # Seconds between automatic market advances.
 TICK_INTERVAL_SECONDS = 3
+
+
+# --- AI lessons -------------------------------------------------------------
+LLM_PROVIDER = "groq"
+# Verified against Groq's live model list. gpt-oss keeps its chain-of-thought in
+# a separate `reasoning` field, so `content` stays clean and fits the budget --
+# the 120b and qwen models spent the whole budget reasoning and truncated.
+LLM_MODEL = "openai/gpt-oss-20b"
+LESSON_MAX_TOKENS = 120

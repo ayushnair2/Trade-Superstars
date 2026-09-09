@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -140,3 +141,15 @@ class MarketState(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     current_step: Mapped[int] = mapped_column(default=0)
     seed: Mapped[int] = mapped_column()
+
+
+class Lesson(Base):
+    """Cached AI lesson text, keyed by concept (+ athlete when player-specific)."""
+
+    __tablename__ = "lessons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cache_key: Mapped[str] = mapped_column(String(120), unique=True)
+    concept: Mapped[str] = mapped_column(String(40))
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -74,14 +74,13 @@ def buy(
 
     try:
         portfolio.cash = _money(portfolio.cash - cost)
-        session.add(
-            Trade(
-                athlete_id=athlete_id,
-                side=Side.buy,
-                quantity=quantity,
-                price=price,
-            )
+        trade = Trade(
+            athlete_id=athlete_id,
+            side=Side.buy,
+            quantity=quantity,
+            price=price,
         )
+        session.add(trade)
 
         holding = session.scalar(
             select(Holding).where(Holding.athlete_id == athlete_id)
@@ -104,6 +103,7 @@ def buy(
     return {
         "cash": float(portfolio.cash),
         "holding": _holding_response(holding),
+        "trade_id": trade.id,
     }
 
 
@@ -122,14 +122,13 @@ def sell(
 
     try:
         portfolio.cash = _money(portfolio.cash + _money(price * quantity))
-        session.add(
-            Trade(
-                athlete_id=athlete_id,
-                side=Side.sell,
-                quantity=quantity,
-                price=price,
-            )
+        trade = Trade(
+            athlete_id=athlete_id,
+            side=Side.sell,
+            quantity=quantity,
+            price=price,
         )
+        session.add(trade)
         # avg_cost is the cost basis of the shares still held, so it doesn't move.
         holding.quantity -= quantity
         session.commit()
@@ -140,6 +139,7 @@ def sell(
     return {
         "cash": float(portfolio.cash),
         "holding": _holding_response(holding),
+        "trade_id": trade.id,
     }
 
 
