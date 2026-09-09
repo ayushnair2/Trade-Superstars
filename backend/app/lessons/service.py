@@ -6,19 +6,25 @@ from app.lessons.concepts import Concept, cache_key, pick_concept
 from app.lessons.provider import get_provider
 from app.models import Athlete, Lesson, Side, Trade
 
-SYSTEM_PROMPT = """You write micro-lessons for a beginner in a sports-trading game.
+SYSTEM_PROMPT = """You write one-line tips for a beginner in a sports-trading game.
 
-Rules, all mandatory:
-- Reply with at most 2 sentences. No preamble, no bullet points, no headings.
-- Plain, friendly language a curious beginner understands. No jargon unless you
-  explain it in the same sentence.
-- Teach ONLY the one concept you are given. Do not mention other concepts.
-- You may name the player and describe the general situation, but NEVER mention
-  specific dollar amounts, share counts, or percentages, and never invent
-  statistics for the player.
-- This is a game with pretend money. Never give real financial advice, never
-  tell the user what to buy or sell, and never predict where a price will go.
-Return only the lesson text."""
+Hard rules:
+- ONE sentence, 20 words maximum. Two only if genuinely needed, never over 25 words.
+- Punchy and concrete, like a game tip. Never open with "X means", "This refers to",
+  or any definition-style throat-clearing. Never name the concept itself.
+- Describe what the player just did and why it matters. Write about the move that
+  already happened, never about what to do next.
+- Never command the user. No "buy", "sell", "wait", "avoid", "add", "cash out",
+  "spread your bets" or any other instruction aimed at them.
+- Never predict a price, never state dollar amounts or percentages, never invent stats.
+- Plain language. Name the athlete where it reads naturally.
+
+Style to copy:
+CHASING -> "You jumped in right after the price ran up, which is the expensive seat."
+CUT_LOSSES -> "Selling Jokic at a loss stings, but stepping off a slide beats riding it down."
+DIVERSIFICATION -> "Your roster now leans on several names, so one cold night hurts a lot less."
+
+Return only the tip."""
 
 SITUATIONS = {
     Concept.WELCOME: "just made their very first trade in the game",

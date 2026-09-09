@@ -39,8 +39,8 @@ TICK_INTERVAL_SECONDS = 3
 
 # --- AI lessons -------------------------------------------------------------
 LLM_PROVIDER = "groq"
-# Verified against Groq's live model list. gpt-oss keeps its chain-of-thought in
-# a separate `reasoning` field, so `content` stays clean and fits the budget --
-# the 120b and qwen models spent the whole budget reasoning and truncated.
-LLM_MODEL = "openai/gpt-oss-20b"
-LESSON_MAX_TOKENS = 120
+# Verified against Groq's live model list. Not a reasoning model, which matters:
+# max_completion_tokens covers reasoning + output, so on gpt-oss a 60-token cap
+# starved the answer (empty 5 of 8 tries). Here the cap limits the tip itself.
+LLM_MODEL = "groq/compound-mini"
+LESSON_MAX_TOKENS = 60

@@ -17,10 +17,9 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 TIMEOUT_SECONDS = 20.0
 RETRIES = 2
-# gpt-oss reasons before answering and the reasoning shares the token budget.
-# At the default effort it spends all of LESSON_MAX_TOKENS thinking and returns
-# empty content; "low" leaves room for the actual lesson.
-REASONING_EFFORT = "low"
+# Reasoning models spend the token budget thinking before they answer, which
+# starves a cap this small. Set this only when LLM_MODEL is such a model.
+REASONING_EFFORT: str | None = None
 
 
 class LessonProviderError(RuntimeError):
@@ -56,7 +55,11 @@ class GroqProvider(LessonProvider):
                     ],
                     max_completion_tokens=LESSON_MAX_TOKENS,
                     temperature=0.7,
-                    reasoning_effort=REASONING_EFFORT,
+                    **(
+                        {"reasoning_effort": REASONING_EFFORT}
+                        if REASONING_EFFORT
+                        else {}
+                    ),
                 )
                 text = (response.choices[0].message.content or "").strip()
                 if text:
