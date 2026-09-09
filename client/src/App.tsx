@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import Header from './components/Header'
+import Landing from './components/Landing'
 import LessonBox from './components/LessonBox'
 import MarketList from './components/MarketList'
 import TradePanel from './components/TradePanel'
@@ -10,7 +11,10 @@ import type { HistoryPoint, MarketPrices, Portfolio } from './types'
 const POLL_MS = 2000
 const HISTORY_LIMIT = 60
 
+type View = 'landing' | 'game'
+
 export default function App() {
+  const [view, setView] = useState<View>('landing')
   const [market, setMarket] = useState<MarketPrices | null>(null)
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -23,6 +27,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (view !== 'game') return
     let cancelled = false
 
     async function load() {
@@ -51,10 +56,10 @@ export default function App() {
       cancelled = true
       clearInterval(id)
     }
-  }, [])
+  }, [view])
 
   useEffect(() => {
-    if (selectedId === null) return
+    if (view !== 'game' || selectedId === null) return
     let cancelled = false
 
     fetch(`/athletes/${selectedId}/history?limit=${HISTORY_LIMIT}`)
@@ -67,7 +72,9 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [selectedId])
+  }, [view, selectedId])
+
+  if (view === 'landing') return <Landing onPlay={() => setView('game')} />
 
   if (error) return <p className="state">ERROR: {error}</p>
   if (!market) return <p className="state">LOADING…</p>
