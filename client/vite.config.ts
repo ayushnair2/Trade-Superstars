@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/market': 'http://localhost:8000',
       '/portfolio': 'http://localhost:8000',
+      '/athletes': 'http://localhost:8000',
     },
   },
 })

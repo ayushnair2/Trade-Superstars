@@ -42,7 +42,9 @@ body {
 }
 
 #root {
-  max-width: 860px;
+  /* Mockup is 860px, sized for surnames like DONCIC. Real rows carry full
+     names plus a sparkline and change column, so the page is wider. */
+  max-width: 1040px;
   margin: 0 auto;
 }
 
@@ -108,6 +110,21 @@ body {
   color: var(--white);
 }
 
+/* --- layout --- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- market list --- */
 
 /* 20 rows overflow the mockup's single screen, so the list scrolls inside
@@ -141,6 +158,23 @@ body {
   gap: 12px;
   padding: 9px 8px;
   border-bottom: 2px solid var(--line);
+  cursor: pointer;
+}
+
+.row.sel {
+  background: var(--panel2);
+}
+
+.row-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+
+.spark {
+  display: block;
+  flex: none;
 }
 
 .row:last-child {
@@ -167,10 +201,30 @@ body {
   font-family: 'Silkscreen', monospace;
   font-size: 15px;
   /* fixed column so prices of different widths stay right-aligned */
-  min-width: 96px;
+  min-width: 84px;
   text-align: right;
   flex: none;
   font-variant-numeric: tabular-nums;
+}
+
+.row-change {
+  font-size: 13px;
+  min-width: 62px;
+  text-align: right;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.up {
+  color: var(--up-hi);
+}
+
+.down {
+  color: var(--down-hi);
+}
+
+.flat {
+  color: var(--muted);
 }
 
 .row-price-empty {
@@ -180,4 +234,158 @@ body {
 .state {
   font-size: 14px;
   color: var(--muted);
+}
+
+/* --- header stats --- */
+
+.header-stats {
+  display: flex;
+  gap: 22px;
+  text-align: right;
+}
+
+/* --- trade panel --- */
+
+.trade {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trade-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.trade-name {
+  font-family: 'Silkscreen', monospace;
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trade-price {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 22px;
+}
+
+.trade-change {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.kv-value {
+  font-family: 'Silkscreen', monospace;
+  color: var(--white);
+  font-size: 14px;
+}
+
+/* Mockup shows QTY as static text; a real input has to be typeable, so it
+   borrows the tag chip's flat fill and hard border. */
+.qty-input {
+  font-family: 'Silkscreen', monospace;
+  font-size: 14px;
+  color: var(--white);
+  background: var(--panel2);
+  border: 2px solid var(--line);
+  border-radius: 0;
+  padding: 4px 6px;
+  width: 72px;
+  text-align: right;
+}
+
+.qty-input:focus {
+  outline: none;
+  border-color: var(--cyan-hi);
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  border: 3px solid #000;
+  border-radius: 0;
+  padding: 12px 0;
+  text-align: center;
+  box-shadow: 4px 4px 0 #000;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Buttons depress into the panel -- instant, no easing. */
+.btn:not(:disabled):active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 #000;
+}
+
+.buy {
+  background: var(--up);
+  color: #0d2a17;
+}
+
+.sell {
+  background: var(--down);
+  color: var(--white);
+}
+
+.trade-error {
+  font-size: 12px;
+  color: var(--down-hi);
+  text-transform: uppercase;
+}
+
+/* --- lesson box --- */
+
+.lesson {
+  margin-top: 18px;
+  border-color: var(--amber);
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.lesson-star {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 20px;
+  color: var(--amber);
+  flex: none;
+}
+
+.lesson-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--amber);
+  margin-bottom: 8px;
+}
+
+.lesson-body {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--white);
+}
+
+.term {
+  color: var(--cyan-hi);
 }
