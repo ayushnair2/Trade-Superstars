@@ -33,3 +33,5 @@ MARKET_SEED = 1337
 # How many recent prices the dashboard sparkline shows, and the lookback
 # distance for percent change.
 SPARK_WINDOW = 12
+# Seconds between automatic market advances.
+TICK_INTERVAL_SECONDS = 3
