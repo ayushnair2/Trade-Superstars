@@ -14,10 +14,11 @@ import random
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 
 from app.config import (
     FORM_WINDOW,
+    PRICE_HISTORY_KEEP,
     PRICE_Z_SCALE,
     MARKET_SEED,
     MOMENTUM,
@@ -241,3 +242,26 @@ def advance_price_tick(session, tick_index: int = 0) -> dict[str, float]:
 
     session.commit()
     return prices
+
+
+def prune_price_history(session) -> int:
+    """Keep only the newest PRICE_HISTORY_KEEP prices per athlete.
+
+    One set-based statement: rank each athlete's rows newest-first and delete
+    everything past the cutoff. Never a per-athlete loop -- that would be one
+    round trip per athlete and grows with the market.
+    """
+    ranked = select(
+        Price.id,
+        func.row_number()
+        .over(
+            partition_by=Price.athlete_id,
+            order_by=(Price.recorded_at.desc(), Price.id.desc()),
+        )
+        .label("rank"),
+    ).subquery()
+
+    stale = select(ranked.c.id).where(ranked.c.rank > PRICE_HISTORY_KEEP)
+    removed = session.execute(delete(Price).where(Price.id.in_(stale))).rowcount
+    session.commit()
+    return removed or 0

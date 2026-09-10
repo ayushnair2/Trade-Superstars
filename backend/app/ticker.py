@@ -17,7 +17,12 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models import Settings
-from app.pricing import advance_game_day, advance_price_tick, get_state
+from app.pricing import (
+    advance_game_day,
+    advance_price_tick,
+    get_state,
+    prune_price_history,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +60,11 @@ def _run_game_day() -> int:
         return get_state(session).current_day
 
 
+def _prune() -> int:
+    with SessionLocal() as session:
+        return prune_price_history(session)
+
+
 def _run_price_tick(tick_index: int) -> None:
     with SessionLocal() as session:
         advance_price_tick(session, tick_index)
@@ -70,6 +80,17 @@ async def _run() -> None:
             logger.info(
                 "game-day %s: %ss long, ~%s ticks", day, day_seconds, ticks_per_day
             )
+
+            # once a day, not per tick: trimming is cheap but not free
+            try:
+                removed = await asyncio.to_thread(_prune)
+                if removed:
+                    logger.info("pruned %s old price rows", removed)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # a failed prune must not cost us the trading day
+                logger.exception("price history prune failed")
 
             # Poisson arrivals: exponential gaps at this rate. The number of
             # ticks in a day is therefore random, not fixed.

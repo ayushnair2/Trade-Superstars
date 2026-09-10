@@ -57,6 +57,9 @@ MARKET_SEED = 1337
 # How many recent prices the dashboard sparkline shows, and the lookback
 # distance for percent change.
 SPARK_WINDOW = 12
+# Price rows kept per athlete. Far more than any endpoint reads (the detail
+# chart asks for 60), so pruning is invisible to the UI.
+PRICE_HISTORY_KEEP = 500
 # Seconds between automatic market advances.
 TICK_INTERVAL_SECONDS = 3
 
