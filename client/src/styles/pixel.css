@@ -846,3 +846,40 @@ body {
   color: var(--muted);
 }
 
+/* --- settings sections --- */
+
+.settings-section {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--amber);
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 6px;
+  margin: 18px 0 12px;
+}
+
+.settings-section:first-of-type {
+  margin-top: 4px;
+}
+
+.settings-presets-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.preset:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.settings-note {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.settings-error {
+  font-size: 11px;
+  color: var(--down-hi);
+  margin-top: 10px;
+  text-transform: uppercase;
+}

@@ -11,6 +11,7 @@ export default defineConfig({
       '/portfolio': 'http://localhost:8000',
       '/athletes': 'http://localhost:8000',
       '/lessons': 'http://localhost:8000',
+      '/settings': 'http://localhost:8000',
     },
   },
 })
