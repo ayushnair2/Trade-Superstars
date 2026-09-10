@@ -813,3 +813,36 @@ body {
   transform: translate(2px, 2px);
 }
 
+/* --- price chart tooltip --- */
+
+.chart {
+  position: relative;
+  line-height: 0;
+  /* stops a drag over the chart from scrolling the page on touch */
+  touch-action: none;
+}
+
+.chart-tip {
+  position: absolute;
+  top: 6px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  box-shadow: 4px 4px 0 #000;
+  padding: 5px 7px;
+  line-height: 1.4;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.chart-tip-price {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: var(--white);
+}
+
+.chart-tip-time {
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+

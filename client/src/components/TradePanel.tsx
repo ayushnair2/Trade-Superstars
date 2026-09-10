@@ -45,7 +45,7 @@ export default function TradePanel({ athlete, history, held, onTraded }: Props) 
         </div>
       </div>
 
-      <PriceChart values={history.map((point) => point.price)} />
+      <PriceChart points={history} />
 
       <TradeControls athleteId={athlete.athlete_id} held={held} onTraded={onTraded} />
     </div>
