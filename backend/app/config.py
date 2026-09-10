@@ -13,6 +13,28 @@ def perf_score(pts: float, reb: float, ast: float) -> float:
     return PTS_WEIGHT * pts + REB_WEIGHT * reb + AST_WEIGHT * ast
 
 
+# --- NFL scoring -----------------------------------------------------------
+# Standard PPR. Owned here rather than taken from a data provider's own fantasy
+# column, so the scoring is ours and every sport's perf_score is defined in
+# exactly one place.
+PPR_WEIGHTS = {
+    "passing_yds": 0.04,
+    "passing_td": 4.0,
+    "interceptions": -2.0,
+    "rushing_yds": 0.1,
+    "rushing_td": 6.0,
+    "receiving_yds": 0.1,
+    "receptions": 1.0,
+    "receiving_td": 6.0,
+    "fumbles_lost": -2.0,
+}
+
+
+def fantasy_points(stats: dict[str, float]) -> float:
+    """PPR fantasy points from component stats. Missing components count zero."""
+    return sum(weight * stats.get(key, 0.0) for key, weight in PPR_WEIGHTS.items())
+
+
 # --- Pricing engine ---------------------------------------------------------
 # Price of a perfectly average athlete in any sport.
 PRICE_BASE = 120.0

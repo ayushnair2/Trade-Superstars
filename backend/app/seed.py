@@ -10,8 +10,10 @@ Idempotent end to end, so it is safe to re-run against any DATABASE_URL:
 from sqlalchemy import func, select
 
 from app.adapters.nba import NBAAdapter
+from app.adapters.nfl import NFLAdapter
 from app.db import Base, SessionLocal, engine
 from app.gamelogs import load_game_logs
+from app.gamelogs_nfl import load_nfl_game_logs
 from app.ingest import ingest
 from app.models import Price
 from app.norms import compute_sport_norms
@@ -23,12 +25,16 @@ def main() -> None:
     Base.metadata.create_all(engine)
 
     print("2/5 ingesting athletes...")
-    count = ingest(NBAAdapter())
-    print(f"     {count} athletes")
+    nba = ingest(NBAAdapter())
+    print(f"     NBA: {nba} athletes")
+    nfl = ingest(NFLAdapter())
+    print(f"     NFL: {nfl} athletes")
 
     print("3/5 loading game logs...")
     loaded = load_game_logs()
-    print(f"     {sum(games for _, games in loaded)} games for {len(loaded)} athletes")
+    print(f"     NBA: {sum(g for _, g in loaded)} games for {len(loaded)} athletes")
+    loaded_nfl = load_nfl_game_logs()
+    print(f"     NFL: {sum(g for _, g in loaded_nfl)} games for {len(loaded_nfl)} athletes")
 
     print("4/5 computing per-sport norms...")
     with SessionLocal() as session:

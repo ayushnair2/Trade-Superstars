@@ -4,5 +4,6 @@ sqlalchemy
 psycopg[binary]
 python-dotenv
 nba_api
+nfl_data_py
 groq
 alembic
