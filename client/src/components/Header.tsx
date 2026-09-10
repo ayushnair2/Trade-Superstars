@@ -3,14 +3,16 @@ import type { Portfolio } from '../types'
 
 type Props = {
   portfolio: Portfolio | null
+  stale: boolean
   onOpenSettings: () => void
 }
 
-export default function Header({ portfolio, onOpenSettings }: Props) {
+export default function Header({ portfolio, stale, onOpenSettings }: Props) {
   return (
     <div className="header">
       <div className="h1">TRADE SUPERSTARS</div>
       <div className="header-stats">
+        {stale && <div className="reconnecting">RECONNECTING…</div>}
         <div>
           <div className="status-label">CASH</div>
           <div className="status-value">{portfolio ? money(portfolio.cash) : '--'}</div>

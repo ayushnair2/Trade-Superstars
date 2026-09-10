@@ -883,3 +883,48 @@ body {
   margin-top: 10px;
   text-transform: uppercase;
 }
+
+/* --- connection states --- */
+
+.reconnecting {
+  align-self: center;
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  color: var(--amber);
+  background: var(--panel);
+  border: 2px solid var(--amber);
+  padding: 5px 8px;
+  white-space: nowrap;
+  /* hard blink, no fade -- consistent with the rest of the arcade chrome */
+  animation: blink 1.4s steps(1) infinite;
+}
+
+.booting {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.booting-box {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--cyan-hi);
+  background: var(--panel);
+  border: 3px solid var(--line);
+  box-shadow: 6px 6px 0 #000;
+  padding: 16px 22px;
+  text-align: center;
+  animation: blink 1.4s steps(1) infinite;
+}
+
+.booting-note {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}

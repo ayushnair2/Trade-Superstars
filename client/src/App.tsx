@@ -24,7 +24,8 @@ export default function App() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryPoint[]>([])
-  const [error, setError] = useState<string | null>(null)
+  // true once a poll cycle fails; cleared as soon as one succeeds
+  const [stale, setStale] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settings = useSettings()
   const { state: lessonState, showForTrade, dismiss: dismissLesson } = useLesson({
@@ -50,24 +51,32 @@ export default function App() {
     if (view !== 'game') return
     let cancelled = false
 
-    async function load() {
-      try {
-        const [pricesRes, portfolioRes] = await Promise.all([
-          fetch(api('/market/prices')),
-          fetch(api('/portfolio')),
-        ])
-        if (!pricesRes.ok) throw new Error(`HTTP ${pricesRes.status}`)
-        const prices: MarketPrices = await pricesRes.json()
-        if (cancelled) return
+    async function fetchJson(path: string) {
+      const res = await fetch(api(path))
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json()
+    }
 
-        setMarket(prices)
-        setError(null)
+    async function load() {
+      // settled, not all: one endpoint failing must not discard the other
+      const [prices, portfolioResult] = await Promise.allSettled([
+        fetchJson('/market/prices'),
+        fetchJson('/portfolio'),
+      ])
+      if (cancelled) return
+
+      if (prices.status === 'fulfilled') {
+        const data: MarketPrices = prices.value
+        setMarket(data)
         // Default the selection to whoever tops the market on first load.
-        setSelectedId((current) => current ?? prices.prices[0]?.athlete_id ?? null)
-        if (portfolioRes.ok) setPortfolio(await portfolioRes.json())
-      } catch (err) {
-        if (!cancelled) setError(String(err))
+        setSelectedId((current) => current ?? data.prices[0]?.athlete_id ?? null)
       }
+      if (portfolioResult.status === 'fulfilled') {
+        setPortfolio(portfolioResult.value)
+      }
+
+      // keep the last good data on failure; just flag that we are behind
+      setStale(prices.status === 'rejected' || portfolioResult.status === 'rejected')
     }
 
     load()
@@ -96,8 +105,16 @@ export default function App() {
 
   if (view === 'landing') return <Landing onPlay={() => setView('game')} />
 
-  if (error) return <p className="state">ERROR: {error}</p>
-  if (!market) return <p className="state">LOADING…</p>
+  // only a first load with nothing to show gets a full-screen state; the
+  // deployed backend can be cold-starting, so this is patience, not failure
+  if (!market) {
+    return (
+      <div className="booting">
+        <div className="booting-box">CONNECTING TO MARKET…</div>
+        <div className="booting-note">the market may be waking up</div>
+      </div>
+    )
+  }
 
   const selected = market.prices.find((row) => row.athlete_id === selectedId) ?? null
   const held =
@@ -105,7 +122,11 @@ export default function App() {
 
   return (
     <>
-      <Header portfolio={portfolio} onOpenSettings={() => setSettingsOpen(true)} />
+      <Header
+        portfolio={portfolio}
+        stale={stale}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
       <div className="layout">
         <MarketList
           rows={market.prices}
