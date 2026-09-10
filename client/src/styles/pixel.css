@@ -396,17 +396,51 @@ body {
   position: fixed;
   inset: 0;
   background: var(--bg);
+  /* faint pixel grid: hard colour stops, so these read as crisp 1px rules
+     rather than a soft gradient wash */
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--panel) 0 1px,
+      transparent 1px 32px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--panel) 0 1px,
+      transparent 1px 32px
+    );
+  background-blend-mode: normal;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.landing-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  padding: 20px 20px 90px;
+  max-width: 100%;
+}
+
+.landing-sprite {
+  flex: none;
+}
+
+.landing-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 22px;
-  padding: 20px;
+  min-width: 0;
 }
 
 .landing-title {
   font-family: 'Press Start 2P', monospace;
-  font-size: 40px;
+  font-size: 44px;
   line-height: 1.4;
   color: var(--amber);
   letter-spacing: 2px;
@@ -415,36 +449,35 @@ body {
   text-shadow: 6px 6px 0 #000;
 }
 
+.landing-title-alt {
+  color: var(--cyan-hi);
+}
+
 .landing-tagline {
   font-size: 16px;
   color: var(--muted);
   text-align: center;
 }
 
-.landing-play {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 16px;
-  color: #0d2a17;
-  background: var(--up);
-  border: 3px solid #000;
-  border-radius: 0;
-  box-shadow: 6px 6px 0 #000;
-  padding: 18px 46px;
-  cursor: pointer;
-  letter-spacing: 2px;
-}
-
-.landing-play:active {
-  transform: translate(6px, 6px);
-  box-shadow: 0 0 0 #000;
-}
-
+/* the prompt is the play control: a bordered arcade box that blinks */
 .landing-prompt {
   font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--cyan-hi);
+  background: var(--panel);
+  border: 3px solid var(--line);
+  border-radius: 0;
+  box-shadow: 6px 6px 0 #000;
+  padding: 14px 22px;
+  cursor: pointer;
+  letter-spacing: 1px;
   /* steps(1) = hard on/off, the arcade blink; never a fade */
   animation: blink 1.1s steps(1) infinite;
+}
+
+.landing-prompt:active {
+  transform: translate(6px, 6px);
+  box-shadow: 0 0 0 #000;
 }
 
 @keyframes blink {
@@ -457,6 +490,8 @@ body {
     opacity: 0;
   }
 }
+
+/* --- ticker --- */
 
 .ticker {
   position: absolute;
@@ -495,9 +530,79 @@ body {
   }
 }
 
-@media (max-width: 720px) {
+/* --- sprites --- */
+
+.sprite {
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.sprite-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 3px dashed var(--line);
+  box-shadow: 6px 6px 0 #000;
+  color: var(--muted);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  text-align: center;
+  animation: sprite-bob 1.8s steps(2) infinite;
+}
+
+@keyframes sprite-frames {
+  from {
+    background-position-x: 0%;
+  }
+  to {
+    background-position-x: 100%;
+  }
+}
+
+/* gentle idle bob, stepped so it hops rather than glides */
+@keyframes sprite-bob {
+  0%,
+  49% {
+    transform: translateY(0);
+  }
+  50%,
+  100% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (max-width: 900px) {
+  .landing-stage {
+    gap: 20px;
+  }
+
   .landing-title {
-    font-size: 20px;
+    font-size: 28px;
+  }
+
+  .sprite,
+  .sprite-placeholder {
+    width: 110px !important;
+    height: 132px !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .landing-stage {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .landing-title {
+    font-size: 22px;
+  }
+
+  .sprite,
+  .sprite-placeholder {
+    width: 88px !important;
+    height: 100px !important;
   }
 }
 
@@ -707,3 +812,4 @@ body {
 .preset:active {
   transform: translate(2px, 2px);
 }
+
