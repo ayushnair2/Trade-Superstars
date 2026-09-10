@@ -1,9 +1,13 @@
-"""Market pricing engine.
+"""Market pricing engine, in two layers.
 
-Prices react to an athlete's recent form relative to their season baseline,
-overshoot it, then get tethered back. Every random draw is derived from
-(seed, athlete_id, step, purpose), so a given seed reproduces a run exactly
-and any past step can be re-derived without replaying the ones before it.
+A game-day advances every athlete one game, recomputes rolling form, and sets
+the price target. Price ticks then walk the price toward that stored target
+without touching form. The maths is unchanged from the single-step engine --
+only the cadence is split.
+
+Every random draw is derived from (seed, athlete_id, step, purpose), so a given
+seed reproduces a run exactly and any past step can be re-derived without
+replaying the ones before it.
 """
 
 import random
@@ -23,7 +27,14 @@ from app.config import (
     TETHER,
     TICK_JITTER,
 )
-from app.models import Athlete, AthleteStat, GameLog, MarketState, Price
+from app.models import (
+    Athlete,
+    AthleteStat,
+    GameLog,
+    MarketAthleteState,
+    MarketState,
+    Price,
+)
 
 
 def _rng(seed: int, athlete_id: int, step: int, purpose: str) -> random.Random:
@@ -109,6 +120,7 @@ def init_market(session) -> dict[str, float]:
     """Set every athlete's opening price to their baseline and record it."""
     state = get_state(session)
     state.current_step = 0
+    state.current_day = 0
 
     opening = {}
     now = datetime.now(timezone.utc)
@@ -126,30 +138,83 @@ def init_market(session) -> dict[str, float]:
     return opening
 
 
-def advance_market(session) -> dict[str, float]:
-    """Move the market one step and price every athlete."""
+def _athlete_state(session, athlete_id: int) -> MarketAthleteState | None:
+    return session.scalar(
+        select(MarketAthleteState).where(MarketAthleteState.athlete_id == athlete_id)
+    )
+
+
+def advance_game_day(session) -> dict[str, dict[str, float]]:
+    """Play one game per athlete, refresh form, and set the new price target.
+
+    Writes no Price rows -- prices only move on a price tick.
+    """
     state = get_state(session)
-    state.current_step += 1
-    step = state.current_step
+    day = state.current_day
     seed = state.seed
 
-    now = datetime.now(timezone.utc)
-    prices = {}
+    results = {}
     for athlete, stream in load_streams(session):
         baseline = stream.baseline_price
-        gap = stream.form_at(seed, step) - stream.mean
+        # form_at averages the last FORM_WINDOW game-days of the stream
+        gap = stream.form_at(seed, day) - stream.mean
 
-        jitter = _rng(seed, athlete.id, step, "reaction").uniform(
+        jitter = _rng(seed, athlete.id, day, "reaction").uniform(
             -REACTION_JITTER, REACTION_JITTER
         )
         reaction = OVERREACTION * (1 + jitter)
         target = baseline + reaction * gap * PRICE_SCALE
 
+        athlete_state = _athlete_state(session, athlete.id)
+        if athlete_state is None:
+            athlete_state = MarketAthleteState(
+                athlete_id=athlete.id,
+                baseline_price=Decimal(f"{baseline:.2f}"),
+                current_target=Decimal(f"{target:.2f}"),
+                last_game_day=day,
+            )
+            session.add(athlete_state)
+        else:
+            athlete_state.baseline_price = Decimal(f"{baseline:.2f}")
+            athlete_state.current_target = Decimal(f"{target:.2f}")
+            athlete_state.last_game_day = day
+
+        results[athlete.name] = {
+            "perf": round(stream.perf_at(seed, day), 2),
+            "baseline": round(baseline, 2),
+            "target": round(target, 2),
+        }
+
+    state.current_day = day + 1
+    session.commit()
+    return results
+
+
+def advance_price_tick(session, tick_index: int = 0) -> dict[str, float]:
+    """Walk every price one step toward its stored target and record it."""
+    state = get_state(session)
+    state.current_step += 1
+    seed = state.seed
+    day = state.current_day
+
+    now = datetime.now(timezone.utc)
+    prices = {}
+    for athlete, stream in load_streams(session):
+        athlete_state = _athlete_state(session, athlete.id)
+        if athlete_state is None:
+            # no game-day has run yet; nothing to move toward
+            continue
+
+        baseline = float(athlete_state.baseline_price)
+        target = float(athlete_state.current_target)
+
         prev = _latest_price(session, athlete.id)
         if prev is None:
             prev = baseline
 
-        noise = _rng(seed, athlete.id, step, "tick").gauss(0, TICK_JITTER)
+        noise = _rng(seed, athlete.id, day * 1000 + tick_index, "tick").gauss(
+            0, TICK_JITTER
+        )
         new_price = (
             prev + MOMENTUM * (target - prev) + TETHER * (baseline - prev) + prev * noise
         )
@@ -162,7 +227,7 @@ def advance_market(session) -> dict[str, float]:
                 recorded_at=now,
             )
         )
-        prices[athlete.name] = new_price
+        prices[athlete.name] = round(new_price, 2)
 
     session.commit()
     return prices

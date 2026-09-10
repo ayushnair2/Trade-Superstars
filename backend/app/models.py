@@ -140,6 +140,8 @@ class MarketState(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     current_step: Mapped[int] = mapped_column(default=0)
+    # Game-days are the slow layer; current_step counts price ticks.
+    current_day: Mapped[int] = mapped_column(default=0)
     seed: Mapped[int] = mapped_column()
 
 
@@ -153,3 +155,30 @@ class Lesson(Base):
     concept: Mapped[str] = mapped_column(String(40))
     text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class MarketAthleteState(Base):
+    """Per-athlete values set on a game-day and read by every price tick."""
+
+    __tablename__ = "market_athlete_state"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"), unique=True)
+    baseline_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    current_target: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    last_game_day: Mapped[int] = mapped_column()
+
+
+class Settings(Base):
+    """Single-row market cadence settings."""
+
+    __tablename__ = "settings"
+    __table_args__ = (CheckConstraint("id = 1", name="settings_single_row"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    day_length_minutes: Mapped[int] = mapped_column(default=10)
+    ticks_per_day: Mapped[int] = mapped_column(default=10)
+    randomness: Mapped[str] = mapped_column(String(20), default="fully_random")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.config import SPARK_WINDOW
 from app.db import get_session
 from app.models import Athlete, Price
-from app.pricing import advance_market, get_state
+from app.pricing import advance_game_day, advance_price_tick, get_state
 
 router = APIRouter(prefix="/market", tags=["market"])
 
@@ -60,19 +60,34 @@ def _latest_prices(session: Session) -> list[dict]:
     return sorted(rows, key=lambda r: (r["price"] is not None, r["price"]), reverse=True)
 
 
-@router.post("/tick")
-def tick(steps: int = 1, session: Session = Depends(get_session)):
-    for _ in range(steps):
-        advance_market(session)
+@router.post("/advance-day")
+def advance_day(session: Session = Depends(get_session)):
+    """Run one game-day: new game per athlete, new form, new targets."""
+    results = advance_game_day(session)
+    state = get_state(session)
     return {
-        "current_step": get_state(session).current_step,
-        "prices": _latest_prices(session),
+        "current_day": state.current_day,
+        "athletes": results,
+    }
+
+
+@router.post("/price-tick")
+def price_tick(tick_index: int = 0, session: Session = Depends(get_session)):
+    """Run one price tick: move every price toward its stored target."""
+    prices = advance_price_tick(session, tick_index)
+    state = get_state(session)
+    return {
+        "current_day": state.current_day,
+        "current_step": state.current_step,
+        "prices": prices,
     }
 
 
 @router.get("/prices")
 def prices(session: Session = Depends(get_session)):
+    state = get_state(session)
     return {
-        "current_step": get_state(session).current_step,
+        "current_step": state.current_step,
+        "current_day": state.current_day,
         "prices": _latest_prices(session),
     }

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import ticker
-from app.routers import athletes, lessons, market, portfolio
+from app.routers import athletes, lessons, market, portfolio, settings
 
 DEFAULT_ORIGINS = "http://localhost:5173"
 
@@ -39,6 +39,7 @@ app.include_router(market.router)
 app.include_router(portfolio.router)
 app.include_router(athletes.router)
 app.include_router(lessons.router)
+app.include_router(settings.router)
 
 
 @app.get("/health")
