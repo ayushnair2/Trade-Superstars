@@ -68,3 +68,53 @@ LLM_PROVIDER = "groq"
 # starved the answer (empty 5 of 8 tries). Here the cap limits the tip itself.
 LLM_MODEL = "groq/compound-mini"
 LESSON_MAX_TOKENS = 60
+
+
+# --- NHL scoring -----------------------------------------------------------
+# Skaters only. Blocks are not published per game by the NHL game-log endpoint,
+# so that component scores zero in game logs and only contributes to season
+# ranking, where the totals are available.
+NHL_WEIGHTS = {
+    "goals": 3.0,
+    "assists": 2.0,
+    "shots": 0.4,
+    "blocks": 0.5,
+    "powerplay_points": 0.5,
+}
+
+
+def nhl_score(stats: dict[str, float]) -> float:
+    return sum(w * stats.get(k, 0.0) for k, w in NHL_WEIGHTS.items())
+
+
+# --- MLB scoring -----------------------------------------------------------
+# Hitters only. Singles are derived: hits - doubles - triples - home runs.
+MLB_WEIGHTS = {
+    "singles": 1.0,
+    "doubles": 2.0,
+    "triples": 3.0,
+    "home_runs": 4.0,
+    "rbi": 1.0,
+    "runs": 1.0,
+    "walks": 1.0,
+    "stolen_bases": 2.0,
+}
+
+
+def mlb_score(stats: dict[str, float]) -> float:
+    return sum(w * stats.get(k, 0.0) for k, w in MLB_WEIGHTS.items())
+
+
+# --- Soccer scoring --------------------------------------------------------
+# All positions. Key passes are not exposed by the public gamelog source, so
+# that component scores zero until a source that carries it is wired in.
+SOCCER_WEIGHTS = {
+    "goals": 4.0,
+    "assists": 3.0,
+    "shots_on_target": 0.5,
+    "key_passes": 0.3,
+}
+
+
+def soccer_score(stats: dict[str, float]) -> float:
+    return sum(w * stats.get(k, 0.0) for k, w in SOCCER_WEIGHTS.items())

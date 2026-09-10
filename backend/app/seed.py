@@ -9,10 +9,14 @@ Idempotent end to end, so it is safe to re-run against any DATABASE_URL:
 
 from sqlalchemy import func, select
 
+from app.adapters.mlb import MLBAdapter
 from app.adapters.nba import NBAAdapter
 from app.adapters.nfl import NFLAdapter
+from app.adapters.nhl import NHLAdapter
+from app.adapters.soccer import SoccerAdapter
 from app.db import Base, SessionLocal, engine
 from app.gamelogs import load_game_logs
+from app.gamelogs_generic import load_game_logs_for
 from app.gamelogs_nfl import load_nfl_game_logs
 from app.ingest import ingest
 from app.models import Price
@@ -20,21 +24,43 @@ from app.norms import compute_sport_norms
 from app.pricing import init_market
 
 
+def _sport_jobs():
+    """Each sport: (label, ingest callable, game-log callable)."""
+    nba, nfl = NBAAdapter(), NFLAdapter()
+    nhl, mlb, soc = NHLAdapter(), MLBAdapter(), SoccerAdapter()
+    return [
+        ("NBA", nba, load_game_logs),
+        ("NFL", nfl, load_nfl_game_logs),
+        ("NHL", nhl, lambda: load_game_logs_for(nhl)),
+        ("MLB", mlb, lambda: load_game_logs_for(mlb)),
+        ("SOC", soc, lambda: load_game_logs_for(soc)),
+    ]
+
+
+def run_all_sports() -> list[str]:
+    """Ingest every sport in isolation. One sport failing never stops the rest."""
+    status = []
+    for label, adapter, load_logs in _sport_jobs():
+        try:
+            count = ingest(adapter)
+            logs = load_logs()
+            games = sum(g for _, g in logs)
+            status.append(f"{label}: {count} players, {games} games")
+        except Exception as exc:
+            status.append(f"{label}: FAILED - {type(exc).__name__}: {str(exc)[:110]}")
+    return status
+
+
 def main() -> None:
     print("1/5 creating tables...")
     Base.metadata.create_all(engine)
 
-    print("2/5 ingesting athletes...")
-    nba = ingest(NBAAdapter())
-    print(f"     NBA: {nba} athletes")
-    nfl = ingest(NFLAdapter())
-    print(f"     NFL: {nfl} athletes")
-
-    print("3/5 loading game logs...")
-    loaded = load_game_logs()
-    print(f"     NBA: {sum(g for _, g in loaded)} games for {len(loaded)} athletes")
-    loaded_nfl = load_nfl_game_logs()
-    print(f"     NFL: {sum(g for _, g in loaded_nfl)} games for {len(loaded_nfl)} athletes")
+    print("2/5 ingesting athletes and loading game logs (per sport)...")
+    status = run_all_sports()
+    print()
+    print("3/5 STATUS")
+    for line in status:
+        print(f"     {line}")
 
     print("4/5 computing per-sport norms...")
     with SessionLocal() as session:
