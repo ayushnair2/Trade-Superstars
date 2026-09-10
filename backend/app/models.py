@@ -182,3 +182,18 @@ class Settings(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+
+class SportNorm(Base):
+    """Per-sport perf_mean distribution, so prices compare across sports."""
+
+    __tablename__ = "sport_norms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sport: Mapped[str] = mapped_column(String(40), unique=True)
+    mean_perf: Mapped[Decimal] = mapped_column(Numeric(10, 4))
+    std_perf: Mapped[Decimal] = mapped_column(Numeric(10, 4))
+    athlete_count: Mapped[int] = mapped_column()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )

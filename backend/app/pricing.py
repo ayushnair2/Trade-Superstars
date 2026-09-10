@@ -18,15 +18,16 @@ from sqlalchemy import select
 
 from app.config import (
     FORM_WINDOW,
+    PRICE_Z_SCALE,
     MARKET_SEED,
     MOMENTUM,
     OVERREACTION,
     PRICE_FLOOR,
-    PRICE_SCALE,
     REACTION_JITTER,
     TETHER,
     TICK_JITTER,
 )
+from app.norms import baseline_price, get_sport_norms
 from app.models import (
     Athlete,
     AthleteStat,
@@ -60,10 +61,6 @@ class AthleteStream:
         start = max(0, step - FORM_WINDOW + 1)
         window = [self.perf_at(seed, t) for t in range(start, step + 1)]
         return sum(window) / len(window)
-
-    @property
-    def baseline_price(self) -> float:
-        return self.mean * PRICE_SCALE
 
 
 def load_streams(session) -> list[tuple[Athlete, AthleteStream]]:
@@ -122,10 +119,14 @@ def init_market(session) -> dict[str, float]:
     state.current_step = 0
     state.current_day = 0
 
+    norms = get_sport_norms(session)
     opening = {}
     now = datetime.now(timezone.utc)
     for athlete, stream in load_streams(session):
-        price = max(stream.baseline_price, PRICE_FLOOR)
+        norm = norms.get(athlete.sport)
+        if norm is None:
+            continue
+        price = baseline_price(stream.mean, norm)
         session.add(
             Price(
                 athlete_id=athlete.id,
@@ -153,17 +154,25 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
     day = state.current_day
     seed = state.seed
 
+    norms = get_sport_norms(session)
+
     results = {}
     for athlete, stream in load_streams(session):
-        baseline = stream.baseline_price
-        # form_at averages the last FORM_WINDOW game-days of the stream
-        gap = stream.form_at(seed, day) - stream.mean
+        norm = norms.get(athlete.sport)
+        if norm is None:
+            # no norms computed for this sport yet; nothing to price against
+            continue
+
+        baseline = baseline_price(stream.mean, norm)
+        # form_at averages the last FORM_WINDOW game-days of the stream, and the
+        # gap is expressed in standard deviations so it is sport-independent
+        gap_z = (stream.form_at(seed, day) - stream.mean) / float(norm.std_perf)
 
         jitter = _rng(seed, athlete.id, day, "reaction").uniform(
             -REACTION_JITTER, REACTION_JITTER
         )
         reaction = OVERREACTION * (1 + jitter)
-        target = baseline + reaction * gap * PRICE_SCALE
+        target = baseline + reaction * gap_z * PRICE_Z_SCALE
 
         athlete_state = _athlete_state(session, athlete.id)
         if athlete_state is None:
@@ -181,6 +190,7 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
 
         results[athlete.name] = {
             "perf": round(stream.perf_at(seed, day), 2),
+            "gap_z": round(gap_z, 2),
             "baseline": round(baseline, 2),
             "target": round(target, 2),
         }

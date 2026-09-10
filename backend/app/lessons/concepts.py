@@ -5,7 +5,8 @@ from enum import StrEnum
 
 from sqlalchemy import func, select
 
-from app.models import AthleteStat, Holding, Price, Side, Trade
+from app.models import Athlete, AthleteStat, Holding, Price, Side, Trade
+from app.norms import VOLATILITY_RATIO, typical_perf_std
 
 
 class Concept(StrEnum):
@@ -26,8 +27,6 @@ GLOBAL_CONCEPTS = {Concept.WELCOME, Concept.DIVERSIFICATION}
 RECENT_PRICE_WINDOW = 12
 # Percent move over that window that counts as notable.
 NOTABLE_MOVE_PCT = Decimal("5")
-# perf_std above this is a swingy player; at or below it is a steady one.
-HIGH_VOLATILITY_STD = Decimal("9")
 # Holding this many different athletes makes diversification the lesson.
 DIVERSIFIED_HOLDINGS = 5
 
@@ -94,8 +93,12 @@ def pick_concept(session, trade: Trade) -> Concept:
             if move <= -NOTABLE_MOVE_PCT:
                 return Concept.BUY_LOW
 
+    # Volatility is judged against the athlete's own sport, so a swingy NBA
+    # guard and a swingy NFL receiver both read as volatile on their own terms.
     std = _perf_std(session, trade.athlete_id)
-    if std is not None and std > HIGH_VOLATILITY_STD:
+    athlete = session.get(Athlete, trade.athlete_id)
+    typical = typical_perf_std(session, athlete.sport) if athlete else None
+    if std is not None and typical and float(std) > typical * VOLATILITY_RATIO:
         return Concept.VOLATILITY
     return Concept.STABILITY
 

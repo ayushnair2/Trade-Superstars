@@ -14,22 +14,32 @@ from app.db import Base, SessionLocal, engine
 from app.gamelogs import load_game_logs
 from app.ingest import ingest
 from app.models import Price
+from app.norms import compute_sport_norms
 from app.pricing import init_market
 
 
 def main() -> None:
-    print("1/4 creating tables...")
+    print("1/5 creating tables...")
     Base.metadata.create_all(engine)
 
-    print("2/4 ingesting athletes...")
+    print("2/5 ingesting athletes...")
     count = ingest(NBAAdapter())
     print(f"     {count} athletes")
 
-    print("3/4 loading game logs...")
+    print("3/5 loading game logs...")
     loaded = load_game_logs()
     print(f"     {sum(games for _, games in loaded)} games for {len(loaded)} athletes")
 
-    print("4/4 opening the market...")
+    print("4/5 computing per-sport norms...")
+    with SessionLocal() as session:
+        norms = compute_sport_norms(session)
+        for sport, norm in sorted(norms.items()):
+            print(
+                f"     {sport}: mean {norm.mean_perf}, std {norm.std_perf}, "
+                f"{norm.athlete_count} athletes"
+            )
+
+    print("5/5 opening the market...")
     with SessionLocal() as session:
         # init_market writes a fresh opening price for everyone, so only run it
         # on a market that has never been opened.

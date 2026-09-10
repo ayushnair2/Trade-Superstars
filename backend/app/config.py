@@ -14,8 +14,10 @@ def perf_score(pts: float, reb: float, ast: float) -> float:
 
 
 # --- Pricing engine ---------------------------------------------------------
-# Dollars of price per point of perf_score.
-PRICE_SCALE = 4.0
+# Price of a perfectly average athlete in any sport.
+PRICE_BASE = 120.0
+# Dollars of price per standard deviation above/below that sport's average.
+PRICE_Z_SCALE = 30.0
 # How many recent steps count as "current form".
 FORM_WINDOW = 5
 # The market overreacts to form: >1 amplifies the gap vs baseline.
