@@ -23,6 +23,12 @@ come from the process environment, so no `.env` file is needed in production —
 pip install -r requirements.txt
 ```
 
+### Pre-deploy command
+
+```
+alembic upgrade head
+```
+
 ### Start command
 
 ```
@@ -32,18 +38,42 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 Run it from the `backend/` directory (set Render's root directory to `backend`).
 `python -m app.main` also works and reads `PORT` itself, defaulting to 8000.
 
+### Migrations
+
+Run before starting the server, on every deploy:
+
+```
+alembic upgrade head
+```
+
+This owns the schema — tables, columns, constraints and indexes. Alembic reads
+`DATABASE_URL` from the environment (see `alembic/env.py`); no URL is stored in
+`alembic.ini`. Running it against an already-current database is a no-op, so it
+is safe on every deploy, not just the first.
+
+If you have an existing database whose schema already matches the models but
+predates Alembic, record its version once without re-running the DDL:
+
+```
+alembic stamp head
+```
+
+`app.create_tables` still exists for quick local scratch work, but it cannot add
+columns to existing tables. Use Alembic for anything deployed.
+
 ### Seeding the database
 
-Once, after the database exists and `DATABASE_URL` is set:
+Once, on a brand-new database, after `alembic upgrade head`:
 
 ```
 python -m app.seed
 ```
 
-This creates the tables, ingests athletes from the NBA adapter, loads per-game
-logs and perf baselines, and opens the market at each athlete's baseline price.
-It is idempotent — re-running updates athletes and logs in place and leaves an
-already-open market untouched. It takes roughly 20-30s, mostly nba_api throttling.
+This ingests athletes from the NBA adapter, loads per-game logs and perf
+baselines, and opens the market at each athlete's baseline price. It is
+idempotent — re-running updates athletes and logs in place and leaves an
+already-open market untouched. It takes roughly 20-30s, mostly nba_api
+throttling.
 
 ### Notes
 
@@ -81,9 +111,10 @@ See `client/.env.example`.
 1. Create the Neon database and copy its connection string.
 2. Deploy the backend with `DATABASE_URL` and `GROQ_API_KEY`; set
    `ALLOWED_ORIGINS` to a placeholder for now.
-3. Run `python -m app.seed` against it.
-4. Deploy the frontend with `VITE_API_URL` pointing at the backend.
-5. Set `ALLOWED_ORIGINS` on the backend to the real Vercel URL and redeploy.
+3. Run `alembic upgrade head` against it to build the schema.
+4. Run `python -m app.seed` against it to fill it with athletes and prices.
+5. Deploy the frontend with `VITE_API_URL` pointing at the backend.
+6. Set `ALLOWED_ORIGINS` on the backend to the real Vercel URL and redeploy.
 
-Step 5 matters: CORS defaults to localhost only, so the deployed frontend is
+Step 6 matters: CORS defaults to localhost only, so the deployed frontend is
 blocked until the real origin is added.
