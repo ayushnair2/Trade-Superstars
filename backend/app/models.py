@@ -63,6 +63,7 @@ class Trade(Base):
     __tablename__ = "trades"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
     side: Mapped[Side] = mapped_column(Enum(Side, name="trade_side"))
     quantity: Mapped[int] = mapped_column()
@@ -76,9 +77,13 @@ class Trade(Base):
 
 class Holding(Base):
     __tablename__ = "holdings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "athlete_id", name="uq_user_athlete_holding"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
     quantity: Mapped[int] = mapped_column(default=0)
     avg_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
 
@@ -86,12 +91,12 @@ class Holding(Base):
 
 
 class Portfolio(Base):
-    """Single-row table: this is a solo sim, so there is exactly one portfolio."""
+    """One portfolio per user, created lazily on first authenticated access."""
 
     __tablename__ = "portfolio"
-    __table_args__ = (CheckConstraint("id = 1", name="portfolio_single_row"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
     cash: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("100000"))
 
 

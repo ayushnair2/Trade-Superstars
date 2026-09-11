@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Athlete, Holding, Portfolio, Price, Side, Trade
+from app.models import Athlete, Holding, Portfolio, Price, Side, Trade, User
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -22,13 +23,24 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
-def _get_portfolio(session: Session) -> Portfolio:
-    portfolio = session.scalar(select(Portfolio).where(Portfolio.id == 1))
+def _get_portfolio(session: Session, user: User) -> Portfolio:
+    """This user's portfolio, opened with the starting cash on first access."""
+    portfolio = session.scalar(
+        select(Portfolio).where(Portfolio.user_id == user.id)
+    )
     if portfolio is None:
-        portfolio = Portfolio(id=1)
+        portfolio = Portfolio(user_id=user.id)
         session.add(portfolio)
         session.flush()
     return portfolio
+
+
+def _get_holding(session: Session, user: User, athlete_id: int) -> Holding | None:
+    return session.scalar(
+        select(Holding).where(
+            Holding.user_id == user.id, Holding.athlete_id == athlete_id
+        )
+    )
 
 
 def _latest_price(session: Session, athlete_id: int) -> Decimal | None:
@@ -64,9 +76,10 @@ def buy(
     athlete_id: int,
     quantity: int = Query(gt=0),
     session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     _, price = _require_athlete_and_price(session, athlete_id)
-    portfolio = _get_portfolio(session)
+    portfolio = _get_portfolio(session, user)
     cost = _money(price * quantity)
 
     if cost > portfolio.cash:
@@ -75,6 +88,7 @@ def buy(
     try:
         portfolio.cash = _money(portfolio.cash - cost)
         trade = Trade(
+            user_id=user.id,
             athlete_id=athlete_id,
             side=Side.buy,
             quantity=quantity,
@@ -82,12 +96,13 @@ def buy(
         )
         session.add(trade)
 
-        holding = session.scalar(
-            select(Holding).where(Holding.athlete_id == athlete_id)
-        )
+        holding = _get_holding(session, user, athlete_id)
         if holding is None:
             holding = Holding(
-                athlete_id=athlete_id, quantity=quantity, avg_cost=price
+                user_id=user.id,
+                athlete_id=athlete_id,
+                quantity=quantity,
+                avg_cost=price,
             )
             session.add(holding)
         else:
@@ -112,17 +127,19 @@ def sell(
     athlete_id: int,
     quantity: int = Query(gt=0),
     session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     _, price = _require_athlete_and_price(session, athlete_id)
-    portfolio = _get_portfolio(session)
+    portfolio = _get_portfolio(session, user)
 
-    holding = session.scalar(select(Holding).where(Holding.athlete_id == athlete_id))
+    holding = _get_holding(session, user, athlete_id)
     if holding is None or quantity > holding.quantity:
         raise HTTPException(status_code=400, detail="insufficient shares")
 
     try:
         portfolio.cash = _money(portfolio.cash + _money(price * quantity))
         trade = Trade(
+            user_id=user.id,
             athlete_id=athlete_id,
             side=Side.sell,
             quantity=quantity,
@@ -144,13 +161,18 @@ def sell(
 
 
 @router.get("")
-def get_portfolio(session: Session = Depends(get_session)):
-    portfolio = _get_portfolio(session)
+def get_portfolio(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    portfolio = _get_portfolio(session, user)
     session.commit()  # persist the row if this was the first read
 
     holdings = []
     total_market_value = Decimal("0")
-    rows = session.scalars(select(Holding).where(Holding.quantity > 0)).all()
+    rows = session.scalars(
+        select(Holding).where(Holding.user_id == user.id, Holding.quantity > 0)
+    ).all()
     for holding in rows:
         athlete = session.get(Athlete, holding.athlete_id)
         price = _latest_price(session, holding.athlete_id)
