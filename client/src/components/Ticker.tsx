@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { api } from '../api'
+import { authFetch } from '../api'
 import { changeClass } from '../format'
 import type { PriceRow } from '../types'
 
@@ -14,7 +14,7 @@ export default function Ticker() {
 
     async function load() {
       try {
-        const res = await fetch(api('/market/prices'))
+        const res = await authFetch('/market/prices')
         if (!res.ok) return
         const data = await res.json()
         if (!cancelled) setRows(data.prices)

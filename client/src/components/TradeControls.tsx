@@ -1,14 +1,22 @@
 import { useState } from 'react'
 
-import { api } from '../api'
+import { authFetch } from '../api'
 
 type Props = {
   athleteId: number
   held: number
+  signedIn: boolean
+  onRequireLogin: () => void
   onTraded: (tradeId: number) => void
 }
 
-export default function TradeControls({ athleteId, held, onTraded }: Props) {
+export default function TradeControls({
+  athleteId,
+  held,
+  signedIn,
+  onRequireLogin,
+  onTraded,
+}: Props) {
   const [quantity, setQuantity] = useState('1')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -17,14 +25,19 @@ export default function TradeControls({ athleteId, held, onTraded }: Props) {
   const valid = Number.isInteger(qty) && qty > 0
 
   async function trade(side: 'buy' | 'sell') {
+    if (!signedIn) {
+      // never fire a request we know will 401; ask them to sign in instead
+      onRequireLogin()
+      return
+    }
     if (!valid) {
       setError('quantity must be a positive whole number')
       return
     }
     setBusy(true)
     try {
-      const res = await fetch(
-        api(`/portfolio/${side}?athlete_id=${athleteId}&quantity=${qty}`),
+      const res = await authFetch(
+        `/portfolio/${side}?athlete_id=${athleteId}&quantity=${qty}`,
         { method: 'POST' },
       )
       if (!res.ok) {

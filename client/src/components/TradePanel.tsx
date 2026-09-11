@@ -8,10 +8,19 @@ type Props = {
   athlete: PriceRow | null
   history: HistoryPoint[]
   held: number
+  signedIn: boolean
+  onRequireLogin: () => void
   onTraded: (tradeId: number) => void
 }
 
-export default function TradePanel({ athlete, history, held, onTraded }: Props) {
+export default function TradePanel({
+  athlete,
+  history,
+  held,
+  signedIn,
+  onRequireLogin,
+  onTraded,
+}: Props) {
   if (!athlete) {
     return (
       <div className="panel trade">
@@ -47,7 +56,13 @@ export default function TradePanel({ athlete, history, held, onTraded }: Props) 
 
       <PriceChart points={history} />
 
-      <TradeControls athleteId={athlete.athlete_id} held={held} onTraded={onTraded} />
+      <TradeControls
+        athleteId={athlete.athlete_id}
+        held={held}
+        signedIn={signedIn}
+        onRequireLogin={onRequireLogin}
+        onTraded={onTraded}
+      />
     </div>
   )
 }

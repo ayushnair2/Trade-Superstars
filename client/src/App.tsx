@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { api } from './api'
+import { authFetch } from './api'
+import AuthScreen from './components/AuthScreen'
 import Header from './components/Header'
 import Landing from './components/Landing'
 import LessonBox from './components/LessonBox'
@@ -10,6 +11,7 @@ import MarketList from './components/MarketList'
 import TradePanel from './components/TradePanel'
 import './styles/pixel.css'
 import type { HistoryPoint, MarketPrices, Portfolio } from './types'
+import { useAuth } from './useAuth'
 import { useLesson } from './useLesson'
 import { useSettings } from './useSettings'
 
@@ -27,6 +29,8 @@ export default function App() {
   // true once a poll cycle fails; cleared as soon as one succeeds
   const [stale, setStale] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const auth = useAuth()
   const settings = useSettings()
   const { state: lessonState, showForTrade, dismiss: dismissLesson } = useLesson({
     enabled: settings.lessonsEnabled,
@@ -34,8 +38,9 @@ export default function App() {
   })
 
   const loadPortfolio = useCallback(async () => {
-    const res = await fetch(api('/portfolio'))
+    const res = await authFetch('/portfolio')
     if (res.ok) setPortfolio(await res.json())
+    else if (res.status === 401) setPortfolio(null)
   }, [])
 
   const handleTraded = useCallback(
@@ -47,12 +52,14 @@ export default function App() {
     [loadPortfolio, showForTrade],
   )
 
+  const signedIn = auth.user !== null
+
   useEffect(() => {
     if (view !== 'game') return
     let cancelled = false
 
     async function fetchJson(path: string) {
-      const res = await fetch(api(path))
+      const res = await authFetch(path)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return res.json()
     }
@@ -61,7 +68,8 @@ export default function App() {
       // settled, not all: one endpoint failing must not discard the other
       const [prices, portfolioResult] = await Promise.allSettled([
         fetchJson('/market/prices'),
-        fetchJson('/portfolio'),
+        // /portfolio is 401 when signed out, which is not a connection problem
+        signedIn ? fetchJson('/portfolio') : Promise.resolve(null),
       ])
       if (cancelled) return
 
@@ -71,7 +79,8 @@ export default function App() {
         // Default the selection to whoever tops the market on first load.
         setSelectedId((current) => current ?? data.prices[0]?.athlete_id ?? null)
       }
-      if (portfolioResult.status === 'fulfilled') {
+      if (!signedIn) setPortfolio(null)
+      else if (portfolioResult.status === 'fulfilled') {
         setPortfolio(portfolioResult.value)
       }
 
@@ -85,13 +94,14 @@ export default function App() {
       cancelled = true
       clearInterval(id)
     }
-  }, [view])
+    // re-runs on sign in/out so the header reflects the right account
+  }, [view, signedIn])
 
   useEffect(() => {
     if (view !== 'game' || selectedId === null) return
     let cancelled = false
 
-    fetch(api(`/athletes/${selectedId}/history?limit=${HISTORY_LIMIT}`))
+    authFetch(`/athletes/${selectedId}/history?limit=${HISTORY_LIMIT}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data) setHistory(data.history)
@@ -125,6 +135,9 @@ export default function App() {
       <Header
         portfolio={portfolio}
         stale={stale}
+        user={auth.user}
+        onLogin={() => setAuthOpen(true)}
+        onLogout={auth.logout}
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <div className="layout">
@@ -137,6 +150,8 @@ export default function App() {
           athlete={selected}
           history={history}
           held={held}
+          signedIn={signedIn}
+          onRequireLogin={() => setAuthOpen(true)}
           onTraded={handleTraded}
         />
       </div>
@@ -144,6 +159,13 @@ export default function App() {
       <Mascot state={lessonState} onDismiss={dismissLesson} />
       {settingsOpen && (
         <SettingsPanel settings={settings} onClose={() => setSettingsOpen(false)} />
+      )}
+      {authOpen && (
+        <AuthScreen
+          auth={auth}
+          onClose={() => setAuthOpen(false)}
+          onSuccess={() => setAuthOpen(false)}
+        />
       )}
     </>
   )

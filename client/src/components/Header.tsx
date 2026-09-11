@@ -4,10 +4,20 @@ import type { Portfolio } from '../types'
 type Props = {
   portfolio: Portfolio | null
   stale: boolean
+  user: { email: string } | null
+  onLogin: () => void
+  onLogout: () => void
   onOpenSettings: () => void
 }
 
-export default function Header({ portfolio, stale, onOpenSettings }: Props) {
+export default function Header({
+  portfolio,
+  stale,
+  user,
+  onLogin,
+  onLogout,
+  onOpenSettings,
+}: Props) {
   return (
     <div className="header">
       <div className="h1">TRADE SUPERSTARS</div>
@@ -23,6 +33,18 @@ export default function Header({ portfolio, stale, onOpenSettings }: Props) {
             {portfolio ? money(portfolio.total_value) : '--'}
           </div>
         </div>
+        {user ? (
+          <div className="account">
+            <div className="status-label">{user.email}</div>
+            <button className="account-btn" onClick={onLogout}>
+              LOG OUT
+            </button>
+          </div>
+        ) : (
+          <button className="account-btn account-login" onClick={onLogin}>
+            LOG IN
+          </button>
+        )}
         <button
           className="gear"
           onClick={onOpenSettings}

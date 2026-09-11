@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { api } from './api'
+import { authFetch } from './api'
 
 export const DAY_LENGTH_PRESETS = [5, 10, 30]
 export const TICKS_PER_DAY_PRESETS = [1, 5, 10, 30]
@@ -19,7 +19,7 @@ export function useMarketSettings() {
 
   useEffect(() => {
     let cancelled = false
-    fetch(api('/settings'))
+    authFetch('/settings')
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data) => {
         if (!cancelled) setSettings(data)
@@ -38,7 +38,7 @@ export function useMarketSettings() {
       const next = { ...settings, ...patch }
       setSaving(true)
       try {
-        const res = await fetch(api('/settings'), {
+        const res = await authFetch('/settings', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(next),

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { api } from './api'
+import { authFetch } from './api'
 
 const VISIBLE_MS = 14000
 
@@ -56,7 +56,7 @@ export function useLesson({ enabled, cooldownMs }: Options) {
 
       // Deliberately not awaited by the caller: a slow or failing lesson must
       // never affect the trade that triggered it.
-      fetch(api('/lessons/for-trade'), {
+      authFetch('/lessons/for-trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trade_id: tradeId }),
