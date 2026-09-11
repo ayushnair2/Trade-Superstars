@@ -55,22 +55,31 @@ def _perf_std(session, athlete_id: int) -> Decimal | None:
     )
 
 
-def _distinct_holdings(session) -> int:
+def _distinct_holdings(session, user_id: int) -> int:
     return session.scalar(
-        select(func.count()).select_from(Holding).where(Holding.quantity > 0)
+        select(func.count())
+        .select_from(Holding)
+        .where(Holding.user_id == user_id, Holding.quantity > 0)
     )
 
 
 def pick_concept(session, trade: Trade) -> Concept:
+    # Portfolios are per user, so "first ever trade" and "holds five names" are
+    # about this trader, not the whole market.
     trade_count = session.scalar(
-        select(func.count()).select_from(Trade).where(Trade.id <= trade.id)
+        select(func.count())
+        .select_from(Trade)
+        .where(Trade.user_id == trade.user_id, Trade.id <= trade.id)
     )
     if trade_count <= 1:
         return Concept.WELCOME
 
     if trade.side is Side.sell:
         holding = session.scalar(
-            select(Holding).where(Holding.athlete_id == trade.athlete_id)
+            select(Holding).where(
+                Holding.user_id == trade.user_id,
+                Holding.athlete_id == trade.athlete_id,
+            )
         )
         # avg_cost is untouched by a sell, so it is still the cost basis sold against.
         if holding is not None:
@@ -82,7 +91,7 @@ def pick_concept(session, trade: Trade) -> Concept:
         # broke exactly even, or the holding is gone -- fall through to the
         # athlete's own character below
 
-    elif _distinct_holdings(session) >= DIVERSIFIED_HOLDINGS:
+    elif _distinct_holdings(session, trade.user_id) >= DIVERSIFIED_HOLDINGS:
         return Concept.DIVERSIFICATION
 
     else:
