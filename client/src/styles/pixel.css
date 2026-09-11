@@ -66,21 +66,19 @@ body {
   margin-bottom: 10px;
 }
 
+/* colour comes from sportColors.ts, applied inline per sport */
 .tag {
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
   padding: 4px 6px;
   border: 2px solid var(--line);
   background: var(--panel2);
-  color: var(--cyan-hi);
+  color: var(--muted);
   /* tags must never compress or wrap when a long name pushes on them */
   flex: none;
   white-space: nowrap;
 }
 
-.tag-alt {
-  color: var(--amber);
-}
 
 /* --- header --- */
 

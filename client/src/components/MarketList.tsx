@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import { sportColor } from '../sportColors'
 import type { PriceRow } from '../types'
 import MarketRow from './MarketRow'
 
@@ -43,6 +44,12 @@ export default function MarketList({ rows, selectedId, onSelect }: Props) {
           <button
             key={option}
             className={option === sport ? 'tab tab-on' : 'tab'}
+            // the selected tab wears that sport's colour; ALL keeps the amber accent
+            style={
+              option === sport && option !== ALL
+                ? { background: sportColor(option), borderColor: sportColor(option) }
+                : undefined
+            }
             onClick={() => setSport(option)}
           >
             {option}
