@@ -7,3 +7,6 @@ nba_api
 nfl_data_py
 groq
 alembic
+bcrypt
+pyjwt
+email-validator

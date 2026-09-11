@@ -121,3 +121,12 @@ SOCCER_WEIGHTS = {
 
 def soccer_score(stats: dict[str, float]) -> float:
     return sum(w * stats.get(k, 0.0) for k, w in SOCCER_WEIGHTS.items())
+
+
+# --- auth ------------------------------------------------------------------
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_DAYS = 7
+MIN_PASSWORD_LENGTH = 8
+# bcrypt refuses anything longer than 72 bytes, so reject it up front with a
+# clear message rather than letting the hash call raise.
+MAX_PASSWORD_BYTES = 72

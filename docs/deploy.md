@@ -10,10 +10,12 @@ Backend on Render, frontend on Vercel, Postgres on Neon.
 |---|---|---|---|
 | `DATABASE_URL` | yes | `postgresql+psycopg://user:pass@host/db` | Neon connection string. Must use the `postgresql+psycopg://` scheme — Neon hands out `postgresql://`, so rewrite the prefix. |
 | `GROQ_API_KEY` | yes | `gsk_...` | Groq API key for lesson generation. |
+| `JWT_SECRET` | yes | (64 random chars) | Signs auth tokens (HS256). Generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Must be at least 32 bytes; the backend refuses to issue tokens without it. Changing it invalidates every existing session. |
 | `ALLOWED_ORIGINS` | yes | `https://trade-superstars.vercel.app` | Comma-separated list of origins allowed by CORS. Defaults to `http://localhost:5173` if unset, which will block the deployed frontend. |
 | `PORT` | no | `10000` | Render sets this automatically. |
 
-`DATABASE_URL` is read in `app/db.py`; `GROQ_API_KEY` in `app/lessons/provider.py`. Both
+`DATABASE_URL` is read in `app/db.py`; `GROQ_API_KEY` in `app/lessons/provider.py`;
+`JWT_SECRET` in `app/auth.py`. All
 come from the process environment, so no `.env` file is needed in production —
 `backend/.env` is for local dev only and is gitignored.
 
