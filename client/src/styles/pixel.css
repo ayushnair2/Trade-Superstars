@@ -1086,3 +1086,63 @@ body {
   cursor: pointer;
   text-align: center;
 }
+
+/* --- risk warnings --- */
+
+.risk-panel {
+  border-color: var(--amber);
+}
+
+.risk-title {
+  color: var(--amber);
+}
+
+.risk-list {
+  list-style: none;
+  margin: 4px 0 16px;
+  padding: 0;
+}
+
+.risk-item {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--white);
+  background: var(--panel2);
+  border-left: 3px solid var(--amber);
+  padding: 9px 10px;
+  margin-bottom: 8px;
+}
+
+.risk-mute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+/* square the browser's rounded checkbox to match the rest of the chrome */
+.risk-mute input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  background: var(--panel2);
+  cursor: pointer;
+}
+
+.risk-mute input:checked {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.risk-actions {
+  margin-top: 0;
+}
+
+.risk-cancel {
+  background: var(--line);
+  color: var(--white);
+}

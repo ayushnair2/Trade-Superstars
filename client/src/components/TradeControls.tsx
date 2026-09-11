@@ -1,30 +1,42 @@
 import { useState } from 'react'
 
 import { authFetch } from '../api'
+import { evaluateTrade, muteWarnings, mutedWarnings, type Warning } from '../riskRules'
+import type { Portfolio, PriceRow } from '../types'
+import RiskDialog from './RiskDialog'
 
 type Props = {
-  athleteId: number
+  athlete: PriceRow
   held: number
   signedIn: boolean
+  portfolio: Portfolio | null
+  rows: PriceRow[]
   onRequireLogin: () => void
   onTraded: (tradeId: number) => void
 }
 
 export default function TradeControls({
-  athleteId,
+  athlete,
   held,
   signedIn,
+  portfolio,
+  rows,
   onRequireLogin,
   onTraded,
 }: Props) {
+  const athleteId = athlete.athlete_id
   const [quantity, setQuantity] = useState('1')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // a trade held back by warnings until the user decides
+  const [pending, setPending] = useState<
+    { side: 'buy' | 'sell'; warnings: Warning[] } | null
+  >(null)
 
   const qty = Number(quantity)
   const valid = Number.isInteger(qty) && qty > 0
 
-  async function trade(side: 'buy' | 'sell') {
+  function trade(side: 'buy' | 'sell') {
     if (!signedIn) {
       // never fire a request we know will 401; ask them to sign in instead
       onRequireLogin()
@@ -34,6 +46,19 @@ export default function TradeControls({
       setError('quantity must be a positive whole number')
       return
     }
+    // rules are templated and local, so this costs nothing and blocks nothing
+    const muted = mutedWarnings()
+    const warnings = evaluateTrade(side, athlete, qty, portfolio, rows).filter(
+      (warning) => !muted.has(warning.id),
+    )
+    if (warnings.length) {
+      setPending({ side, warnings })
+      return
+    }
+    execute(side)
+  }
+
+  async function execute(side: 'buy' | 'sell') {
     setBusy(true)
     try {
       const res = await authFetch(
@@ -93,6 +118,19 @@ export default function TradeControls({
       </div>
 
       {error && <div className="trade-error">{error}</div>}
+
+      {pending && (
+        <RiskDialog
+          warnings={pending.warnings}
+          onCancel={() => setPending(null)}
+          onProceed={(muteTypes) => {
+            if (muteTypes) muteWarnings(pending.warnings.map((w) => w.id))
+            const { side } = pending
+            setPending(null)
+            execute(side)
+          }}
+        />
+      )}
     </>
   )
 }

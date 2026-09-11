@@ -1,5 +1,5 @@
 import { arrow, changeClass, money } from '../format'
-import type { HistoryPoint, PriceRow } from '../types'
+import type { HistoryPoint, Portfolio, PriceRow } from '../types'
 import PriceChart from './PriceChart'
 import SportTag from './SportTag'
 import TradeControls from './TradeControls'
@@ -9,6 +9,8 @@ type Props = {
   history: HistoryPoint[]
   held: number
   signedIn: boolean
+  portfolio: Portfolio | null
+  rows: PriceRow[]
   onRequireLogin: () => void
   onTraded: (tradeId: number) => void
 }
@@ -18,6 +20,8 @@ export default function TradePanel({
   history,
   held,
   signedIn,
+  portfolio,
+  rows,
   onRequireLogin,
   onTraded,
 }: Props) {
@@ -57,9 +61,11 @@ export default function TradePanel({
       <PriceChart points={history} />
 
       <TradeControls
-        athleteId={athlete.athlete_id}
+        athlete={athlete}
         held={held}
         signedIn={signedIn}
+        portfolio={portfolio}
+        rows={rows}
         onRequireLogin={onRequireLogin}
         onTraded={onTraded}
       />

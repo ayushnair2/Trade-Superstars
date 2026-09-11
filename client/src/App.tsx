@@ -151,6 +151,8 @@ export default function App() {
           history={history}
           held={held}
           signedIn={signedIn}
+          portfolio={portfolio}
+          rows={market.prices}
           onRequireLogin={() => setAuthOpen(true)}
           onTraded={handleTraded}
         />
