@@ -6,7 +6,7 @@ import MarketRow from './MarketRow'
 const ALL = 'ALL'
 // Known sports lead in this order; anything new in the data is appended, so a
 // sixth sport shows up without touching this file.
-const SPORT_ORDER = ['NBA', 'NFL', 'NHL', 'MLB', 'SOC']
+const SPORT_ORDER = ['NBA', 'NFL', 'NHL', 'MLB', 'FUT']
 
 type Props = {
   rows: PriceRow[]

@@ -108,10 +108,10 @@ def mlb_score(stats: dict[str, float]) -> float:
     return sum(w * stats.get(k, 0.0) for k, w in MLB_WEIGHTS.items())
 
 
-# --- Soccer scoring --------------------------------------------------------
+# --- Football (FUT) scoring ------------------------------------------------
 # All positions. Key passes are not exposed by the public gamelog source, so
 # that component scores zero until a source that carries it is wired in.
-SOCCER_WEIGHTS = {
+FUT_WEIGHTS = {
     "goals": 4.0,
     "assists": 3.0,
     "shots_on_target": 0.5,
@@ -119,8 +119,8 @@ SOCCER_WEIGHTS = {
 }
 
 
-def soccer_score(stats: dict[str, float]) -> float:
-    return sum(w * stats.get(k, 0.0) for k, w in SOCCER_WEIGHTS.items())
+def fut_score(stats: dict[str, float]) -> float:
+    return sum(w * stats.get(k, 0.0) for k, w in FUT_WEIGHTS.items())
 
 
 # --- auth ------------------------------------------------------------------

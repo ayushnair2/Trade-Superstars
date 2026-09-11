@@ -33,7 +33,7 @@ def _sport_jobs():
         ("NFL", nfl, load_nfl_game_logs),
         ("NHL", nhl, lambda: load_game_logs_for(nhl)),
         ("MLB", mlb, lambda: load_game_logs_for(mlb)),
-        ("SOC", soc, lambda: load_game_logs_for(soc)),
+        ("FUT", soc, lambda: load_game_logs_for(soc)),
     ]
 
 
