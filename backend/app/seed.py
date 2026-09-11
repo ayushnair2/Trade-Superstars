@@ -21,7 +21,7 @@ from app.gamelogs_nfl import load_nfl_game_logs
 from app.ingest import ingest
 from app.models import Price
 from app.norms import compute_sport_norms
-from app.pricing import init_market
+from app.pricing import init_market, open_missing_prices
 
 
 def _sport_jobs():
@@ -76,7 +76,9 @@ def main() -> None:
         # init_market writes a fresh opening price for everyone, so only run it
         # on a market that has never been opened.
         if session.scalar(select(func.count()).select_from(Price)):
-            print("     already open, leaving prices alone")
+            # market already trading: only newcomers need an opening price
+            opened = open_missing_prices(session)
+            print(f"     already open; opened {len(opened)} new athletes")
         else:
             opening = init_market(session)
             print(f"     opened {len(opening)} athletes at their baseline")

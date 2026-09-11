@@ -265,3 +265,37 @@ def prune_price_history(session) -> int:
     removed = session.execute(delete(Price).where(Price.id.in_(stale))).rowcount
     session.commit()
     return removed or 0
+
+
+def open_missing_prices(session) -> dict[str, float]:
+    """Give an opening price to athletes that have none, leaving the rest alone.
+
+    Used when new athletes join a market that is already running: init_market
+    would reset the clock and re-open everyone, which is wrong once trading has
+    started.
+    """
+    norms = get_sport_norms(session)
+    priced = set(
+        session.scalars(select(Price.athlete_id).distinct()).all()
+    )
+
+    opened = {}
+    now = datetime.now(timezone.utc)
+    for athlete, stream in load_streams(session):
+        if athlete.id in priced:
+            continue
+        norm = norms.get(athlete.sport)
+        if norm is None:
+            continue
+        price = baseline_price(stream.mean, norm)
+        session.add(
+            Price(
+                athlete_id=athlete.id,
+                price=Decimal(f"{price:.2f}"),
+                recorded_at=now,
+            )
+        )
+        opened[athlete.name] = round(price, 2)
+
+    session.commit()
+    return opened
