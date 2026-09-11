@@ -2,7 +2,14 @@
 
 from sqlalchemy import select
 
-from app.lessons.concepts import Concept, cache_key, pick_concept
+import re
+
+from app.lessons.concepts import (
+    GLOBAL_CONCEPTS,
+    Concept,
+    cache_key,
+    pick_concept,
+)
 from app.lessons.provider import get_provider
 from app.models import Athlete, Lesson, Side, Trade
 
@@ -17,7 +24,9 @@ Hard rules:
 - Never command the user. No "buy", "sell", "wait", "avoid", "add", "cash out",
   "spread your bets" or any other instruction aimed at them.
 - Never predict a price, never state dollar amounts or percentages, never invent stats.
-- Plain language. Name the athlete where it reads naturally.
+- Plain language. Name the athlete where it reads naturally -- but ONLY when the
+  prompt gives you one. If no player is named, the tip is about the portfolio as
+  a whole: never name or invent a specific player.
 
 Style to copy:
 CHASING -> "You jumped in right after the price ran up, which is the expensive seat."
@@ -38,14 +47,60 @@ SITUATIONS = {
 }
 
 
-def _user_prompt(concept: Concept, athlete_name: str, side: Side) -> str:
+# A global concept is cached under one key and served to every user for every
+# athlete, so its text has to hold true for all of them.
+FALLBACK_LESSONS = {
+    Concept.WELCOME: (
+        "Your first trade is in -- from here you own a slice of the market and "
+        "its ups and downs."
+    ),
+    Concept.DIVERSIFICATION: (
+        "Your roster now leans on several names, so one cold night barely dents "
+        "the whole thing."
+    ),
+}
+
+# Skip initials and particles ("Jr", "de", "Bo") that would match ordinary prose.
+MIN_NAME_TOKEN = 4
+
+
+def _user_prompt(concept: Concept, athlete_name: str | None, side: Side) -> str:
     situation = SITUATIONS[concept]
-    return (
-        f"Concept to teach: {concept}\n"
-        f"Player involved: {athlete_name}\n"
-        f"Action: {side.value}\n"
-        f"Situation: the user {situation}."
-    )
+    lines = [f"Concept to teach: {concept}"]
+    if athlete_name is not None:
+        lines.append(f"Player involved: {athlete_name}")
+    else:
+        # cached once for everyone, so it must not belong to any one player
+        lines.append("Player involved: none -- write about the portfolio generally")
+    lines.append(f"Action: {side.value}")
+    lines.append(f"Situation: the user {situation}.")
+    return "\n".join(lines)
+
+
+def athlete_name_tokens(session) -> set[str]:
+    """Full names and surnames, for spotting a player named in a global tip."""
+    tokens = set()
+    for (name,) in session.execute(select(Athlete.name)).all():
+        tokens.add(name)
+        tokens.update(part for part in name.split() if len(part) >= MIN_NAME_TOKEN)
+    return tokens
+
+
+def names_a_player(text: str, tokens: set[str]) -> bool:
+    """Case-sensitive: "Judge" the player counts, "judge" the verb does not."""
+    return any(re.search(rf"\b{re.escape(token)}\b", text) for token in tokens)
+
+
+def _global_text(session, concept: Concept, side: Side, provider) -> str:
+    """Generate a player-agnostic lesson, retrying once, then falling back."""
+    prompt = _user_prompt(concept, None, side)
+    tokens = athlete_name_tokens(session)
+    for _ in range(2):
+        text = provider.generate(SYSTEM_PROMPT, prompt)
+        if not names_a_player(text, tokens):
+            return text
+    # never cache a global lesson that names a player
+    return FALLBACK_LESSONS[concept]
 
 
 def lesson_for_trade(session, trade: Trade) -> dict:
@@ -56,10 +111,14 @@ def lesson_for_trade(session, trade: Trade) -> dict:
     if cached is not None:
         return {"concept": str(concept), "text": cached.text, "cached": True}
 
-    athlete = session.get(Athlete, trade.athlete_id)
-    text = get_provider().generate(
-        SYSTEM_PROMPT, _user_prompt(concept, athlete.name, trade.side)
-    )
+    provider = get_provider()
+    if concept in GLOBAL_CONCEPTS:
+        text = _global_text(session, concept, trade.side, provider)
+    else:
+        athlete = session.get(Athlete, trade.athlete_id)
+        text = provider.generate(
+            SYSTEM_PROMPT, _user_prompt(concept, athlete.name, trade.side)
+        )
 
     session.add(Lesson(cache_key=key, concept=str(concept), text=text))
     session.commit()
