@@ -1509,3 +1509,74 @@ body {
     gap: 10px;
   }
 }
+
+/* --- fund basket (trade panel) --- */
+
+.fund-basket {
+  border: 2px solid var(--line);
+  background: var(--panel2);
+  padding: 10px;
+  margin-bottom: 14px;
+}
+
+.fund-basket-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.fund-basket-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--cyan-hi);
+  margin-bottom: 9px;
+}
+
+.fund-members {
+  list-style: none;
+  /* ten names would push the buy buttons off a short panel */
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.fund-member {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 3px 0;
+  min-width: 0;
+}
+
+.fund-member-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+.fund-member-name {
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fund-member-sport {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  flex: none;
+}
+
+.fund-member-price {
+  margin-left: auto;
+  color: var(--muted);
+  flex: none;
+}
+
+/* shown when every holding is a fund, so the sport split has nothing to say */
+.pf-sport-empty {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}

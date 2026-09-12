@@ -16,3 +16,7 @@ export const SPORT_COLORS: Record<string, string> = {
 
 /** Anything not in the map falls back to the muted text colour. */
 export const sportColor = (sport: string) => SPORT_COLORS[sport] ?? 'var(--muted)'
+
+/** Funds are not a sport, so they get their own accent -- Sweetie-16's cyan,
+ *  which none of the five sports uses. */
+export const FUND_COLOR = '#73eff7'

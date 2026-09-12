@@ -11,12 +11,22 @@ import MarketList from './components/MarketList'
 import PortfolioView from './components/PortfolioView'
 import TradePanel from './components/TradePanel'
 import './styles/pixel.css'
-import type { HistoryPoint, MarketPrices, Portfolio } from './types'
+import type {
+  FundDetail,
+  HistoryPoint,
+  MarketPrices,
+  Portfolio,
+  Selection,
+} from './types'
 import { useAuth } from './useAuth'
 import { useLesson } from './useLesson'
 import { useSettings } from './useSettings'
 
 const POLL_MS = 2000
+
+/** Stable identity for a selection, so cached data is never shown for the
+ *  wrong asset -- athlete 3 and fund 3 are different things. */
+const selectionKey = (selection: Selection) => `${selection.kind}:${selection.id}`
 const HISTORY_LIMIT = 60
 
 type View = 'landing' | 'game'
@@ -26,8 +36,15 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('market')
   const [market, setMarket] = useState<MarketPrices | null>(null)
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [history, setHistory] = useState<HistoryPoint[]>([])
+  const [selection, setSelection] = useState<Selection | null>(null)
+  // cached per code, so flicking between funds does not refetch or flash
+  const [fundCache, setFundCache] = useState<Record<string, FundDetail>>({})
+  // keyed by asset: reading points only when the key matches means a stale
+  // chart never flashes under a newly selected name
+  const [history, setHistory] = useState<{ key: string; points: HistoryPoint[] }>({
+    key: '',
+    points: [],
+  })
   // true once a poll cycle fails; cleared as soon as one succeeds
   const [stale, setStale] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -79,7 +96,11 @@ export default function App() {
         const data: MarketPrices = prices.value
         setMarket(data)
         // Default the selection to whoever tops the market on first load.
-        setSelectedId((current) => current ?? data.prices[0]?.athlete_id ?? null)
+        setSelection((current) => {
+          if (current) return current
+          const top = data.prices[0]
+          return top ? { kind: 'athlete', id: top.athlete_id } : null
+        })
       }
       if (!signedIn) setPortfolio(null)
       else if (portfolioResult.status === 'fulfilled') {
@@ -100,20 +121,44 @@ export default function App() {
   }, [view, signedIn])
 
   useEffect(() => {
-    if (view !== 'game' || selectedId === null) return
+    if (view !== 'game' || selection === null) return
     let cancelled = false
 
-    authFetch(`/athletes/${selectedId}/history?limit=${HISTORY_LIMIT}`)
+    // funds are addressed by code, athletes by id, but both answer the same shape
+    const key = selectionKey(selection)
+    const path =
+      selection.kind === 'fund'
+        ? `/funds/${selection.code}/history?limit=${HISTORY_LIMIT}`
+        : `/athletes/${selection.id}/history?limit=${HISTORY_LIMIT}`
+
+    authFetch(path)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data) setHistory(data.history)
+        if (!cancelled && data) setHistory({ key, points: data.history })
       })
       .catch(() => undefined)
 
     return () => {
       cancelled = true
     }
-  }, [view, selectedId])
+  }, [view, selection])
+
+  // the member list, so a buyer sees what the basket actually holds
+  useEffect(() => {
+    if (view !== 'game' || selection?.kind !== 'fund') return
+    const code = selection.code
+    let cancelled = false
+    authFetch(`/funds/${code}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setFundCache((prev) => ({ ...prev, [code]: data }))
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [view, selection])
 
   if (view === 'landing') return <Landing onPlay={() => setView('game')} />
 
@@ -128,9 +173,16 @@ export default function App() {
     )
   }
 
-  const selected = market.prices.find((row) => row.athlete_id === selectedId) ?? null
+  const selected =
+    selection?.kind === 'athlete'
+      ? (market.prices.find((row) => row.athlete_id === selection.id) ?? null)
+      : null
   const held =
-    portfolio?.holdings.find((h) => h.athlete_id === selectedId)?.quantity ?? 0
+    portfolio?.holdings.find((h) =>
+      selection?.kind === 'fund'
+        ? h.fund_id === selection.id
+        : h.athlete_id === selection?.id,
+    )?.quantity ?? 0
 
   return (
     <>
@@ -148,12 +200,21 @@ export default function App() {
         <div className="layout">
           <MarketList
             rows={market.prices}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
+            funds={market.funds ?? []}
+            selection={selection}
+            onSelect={setSelection}
           />
           <TradePanel
+            selection={selection}
             athlete={selected}
-            history={history}
+            fund={
+              selection?.kind === 'fund' ? (fundCache[selection.code] ?? null) : null
+            }
+            history={
+              selection && history.key === selectionKey(selection)
+                ? history.points
+                : []
+            }
             held={held}
             signedIn={signedIn}
             portfolio={portfolio}

@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 
 import { changeClass, money } from '../format'
-import type { Portfolio, PriceRow } from '../types'
+import type { HoldingRow, Portfolio, PriceRow } from '../types'
+import { FUND_COLOR } from '../sportColors'
+import FundTag from './FundTag'
 import PortfolioPie, { type Slice } from './PortfolioPie'
 import SportBreakdown, { type SportSlice } from './SportBreakdown'
 import SportTag from './SportTag'
@@ -35,6 +37,9 @@ const OTHER_COLOR = '#94b0c2'
 const MAX_SLICES = 8
 
 const pct = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+
+const isFund = (holding: HoldingRow) =>
+  holding.asset_type === 'fund' || holding.fund_id != null
 
 export default function PortfolioView({
   portfolio,
@@ -78,13 +83,16 @@ export default function PortfolioView({
     const tail = byValue.slice(MAX_SLICES)
 
     const out: Slice[] = head.map((holding, index) => {
-      const sport = sportOf.get(holding.athlete_id)
+      const fund = isFund(holding)
+      const sport = holding.athlete_id === null ? undefined : sportOf.get(holding.athlete_id)
       return {
-        key: String(holding.athlete_id),
+        key: fund ? `fund-${holding.fund_id}` : `athlete-${holding.athlete_id}`,
         label: holding.name,
         value: holding.market_value,
-        color: SLICE_COLORS[index % SLICE_COLORS.length],
-        badge: sport ? <SportTag sport={sport} /> : undefined,
+        // funds keep their own accent wherever they land in the order, so a
+        // basket never reads as just another player
+        color: fund ? FUND_COLOR : SLICE_COLORS[index % SLICE_COLORS.length],
+        badge: fund ? <FundTag /> : sport ? <SportTag sport={sport} /> : undefined,
       }
     })
     if (tail.length > 0) {
@@ -104,6 +112,9 @@ export default function PortfolioView({
   const sportSlices = useMemo<SportSlice[]>(() => {
     const totals = new Map<string, number>()
     for (const holding of portfolio?.holdings ?? []) {
+      // a fund spans several sports; counting it under one would misreport
+      // concentration, so the breakdown is of directly-held players only
+      if (isFund(holding) || holding.athlete_id === null) continue
       const sport = sportOf.get(holding.athlete_id) ?? '—'
       totals.set(sport, (totals.get(sport) ?? 0) + holding.market_value)
     }
@@ -161,7 +172,17 @@ export default function PortfolioView({
             </div>
             <div className="panel">
               <div className="panel-title">BY SPORT</div>
-              <SportBreakdown slices={sportSlices} invested={stats.invested} />
+              {sportSlices.length === 0 ? (
+                <div className="pf-sport-empty">
+                  You only hold funds. A fund already spreads across sports, so
+                  there is no single-sport concentration to show.
+                </div>
+              ) : (
+                <SportBreakdown
+                  slices={sportSlices}
+                  invested={sportSlices.reduce((sum, s) => sum + s.value, 0)}
+                />
+              )}
             </div>
           </div>
 
@@ -198,12 +219,20 @@ export default function PortfolioView({
                 </thead>
                 <tbody>
                   {sorted.map((holding) => {
-                    const sport = sportOf.get(holding.athlete_id)
+                    const fund = isFund(holding)
+                    const sport =
+                      holding.athlete_id === null
+                        ? undefined
+                        : sportOf.get(holding.athlete_id)
                     return (
-                      <tr key={holding.athlete_id}>
+                      <tr
+                        key={fund ? `fund-${holding.fund_id}` : `athlete-${holding.athlete_id}`}
+                      >
                         <td className="pf-name">{holding.name}</td>
                         <td>
-                          {sport ? (
+                          {fund ? (
+                            <FundTag />
+                          ) : sport ? (
                             <SportTag sport={sport} />
                           ) : (
                             <span className="pf-dim">—</span>

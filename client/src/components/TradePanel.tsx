@@ -1,11 +1,21 @@
 import { arrow, changeClass, money } from '../format'
-import type { HistoryPoint, Portfolio, PriceRow } from '../types'
+import { sportColor } from '../sportColors'
+import type {
+  FundDetail,
+  HistoryPoint,
+  Portfolio,
+  PriceRow,
+  Selection,
+} from '../types'
+import FundTag from './FundTag'
 import PriceChart from './PriceChart'
 import SportTag from './SportTag'
 import TradeControls from './TradeControls'
 
 type Props = {
+  selection: Selection | null
   athlete: PriceRow | null
+  fund: FundDetail | null
   history: HistoryPoint[]
   held: number
   signedIn: boolean
@@ -15,8 +25,25 @@ type Props = {
   onTraded: (tradeId: number) => void
 }
 
+/** A fund wearing a PriceRow's shape, so the risk rules can read it without
+ *  knowing about funds. asset_type is what exempts it from the single-player
+ *  concentration rule. */
+function asPriceRow(fund: FundDetail): PriceRow & { asset_type: 'fund' } {
+  return {
+    athlete_id: -fund.fund_id, // never collides with a real athlete id
+    name: fund.name,
+    sport: 'FUND',
+    price: fund.price,
+    change_pct: fund.change_pct,
+    spark: fund.spark,
+    asset_type: 'fund',
+  }
+}
+
 export default function TradePanel({
+  selection,
   athlete,
+  fund,
   history,
   held,
   signedIn,
@@ -25,17 +52,20 @@ export default function TradePanel({
   onRequireLogin,
   onTraded,
 }: Props) {
-  if (!athlete) {
+  const isFund = selection?.kind === 'fund'
+  const subject = isFund ? (fund ? asPriceRow(fund) : null) : athlete
+
+  if (!selection || !subject) {
     return (
       <div className="panel trade">
         <div className="panel-title">TRADE</div>
-        <div className="state">NO ATHLETE SELECTED</div>
+        <div className="state">{selection ? 'LOADING…' : 'NOTHING SELECTED'}</div>
       </div>
     )
   }
 
-  const pct = athlete.change_pct
-  const price = athlete.price ?? 0
+  const pct = subject.change_pct
+  const price = subject.price ?? 0
   // The payload carries % but not the dollar move, and its baseline sits one row
   // behind `spark`. Deriving it from the % keeps the two figures consistent.
   const delta = pct === null ? 0 : price - price / (1 + pct / 100)
@@ -43,8 +73,8 @@ export default function TradePanel({
   return (
     <div className="panel trade">
       <div className="trade-id">
-        <SportTag sport={athlete.sport} />
-        <span className="trade-name">{athlete.name}</span>
+        {isFund ? <FundTag /> : <SportTag sport={subject.sport} />}
+        <span className="trade-name">{subject.name}</span>
       </div>
 
       <div>
@@ -60,8 +90,38 @@ export default function TradePanel({
 
       <PriceChart points={history} />
 
+      {isFund && fund && (
+        <div className="fund-basket">
+          <div className="fund-basket-note">{fund.description}</div>
+          <div className="fund-basket-title">
+            HOLDS {fund.member_count} PLAYERS
+          </div>
+          <ul className="fund-members">
+            {fund.members.map((member) => (
+              <li key={member.athlete_id} className="fund-member">
+                <span
+                  className="fund-member-dot"
+                  style={{ background: sportColor(member.sport) }}
+                />
+                <span className="fund-member-name">{member.name}</span>
+                <span
+                  className="fund-member-sport"
+                  style={{ color: sportColor(member.sport) }}
+                >
+                  {member.sport}
+                </span>
+                <span className="fund-member-price">
+                  {member.price === null ? '--' : money(member.price)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <TradeControls
-        athlete={athlete}
+        asset={selection}
+        athlete={subject}
         held={held}
         signedIn={signedIn}
         portfolio={portfolio}

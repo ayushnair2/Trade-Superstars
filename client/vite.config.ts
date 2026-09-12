@@ -6,7 +6,15 @@ const BACKEND = 'http://localhost:8000'
 // Every top-level route group served by FastAPI. Adding a backend router means
 // adding its prefix here -- and only here. Vite treats a key starting with "^"
 // as a regex, so this is one proxy rule covering all of them.
-const API_ROOTS = ['auth', 'market', 'portfolio', 'athletes', 'lessons', 'settings']
+const API_ROOTS = [
+  'auth',
+  'market',
+  'portfolio',
+  'athletes',
+  'lessons',
+  'settings',
+  'funds',
+]
 const API_PATTERN = `^/(${API_ROOTS.join('|')})(/|$)`
 
 /** Make an unproxied API call fail loudly.

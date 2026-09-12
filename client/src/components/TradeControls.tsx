@@ -2,10 +2,13 @@ import { useState } from 'react'
 
 import { authFetch } from '../api'
 import { evaluateTrade, muteWarnings, mutedWarnings, type Warning } from '../riskRules'
-import type { Portfolio, PriceRow } from '../types'
+import type { Portfolio, PriceRow, Selection } from '../types'
 import RiskDialog from './RiskDialog'
 
 type Props = {
+  /** the asset being traded; funds and athletes share these controls */
+  asset: Selection
+  /** PriceRow shape for the risk rules -- a fund is adapted into one */
   athlete: PriceRow
   held: number
   signedIn: boolean
@@ -16,6 +19,7 @@ type Props = {
 }
 
 export default function TradeControls({
+  asset,
   athlete,
   held,
   signedIn,
@@ -24,7 +28,9 @@ export default function TradeControls({
   onRequireLogin,
   onTraded,
 }: Props) {
-  const athleteId = athlete.athlete_id
+  // the backend takes exactly one of athlete_id or fund_id
+  const assetParam =
+    asset.kind === 'fund' ? `fund_id=${asset.id}` : `athlete_id=${asset.id}`
   const [quantity, setQuantity] = useState('1')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -62,7 +68,7 @@ export default function TradeControls({
     setBusy(true)
     try {
       const res = await authFetch(
-        `/portfolio/${side}?athlete_id=${athleteId}&quantity=${qty}`,
+        `/portfolio/${side}?${assetParam}&quantity=${qty}`,
         { method: 'POST' },
       )
       if (!res.ok) {
