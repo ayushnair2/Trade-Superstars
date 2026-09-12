@@ -1,7 +1,11 @@
 import { money } from '../format'
 import type { Portfolio } from '../types'
 
+export type Tab = 'market' | 'portfolio'
+
 type Props = {
+  tab: Tab
+  onTab: (tab: Tab) => void
   portfolio: Portfolio | null
   stale: boolean
   user: { email: string } | null
@@ -11,6 +15,8 @@ type Props = {
 }
 
 export default function Header({
+  tab,
+  onTab,
   portfolio,
   stale,
   user,
@@ -20,7 +26,25 @@ export default function Header({
 }: Props) {
   return (
     <div className="header">
-      <div className="h1">TRADE SUPERSTARS</div>
+      <div className="header-left">
+        <div className="h1">TRADE SUPERSTARS</div>
+        <nav className="view-tabs" aria-label="View">
+          <button
+            className={`view-tab${tab === 'market' ? ' on' : ''}`}
+            aria-current={tab === 'market'}
+            onClick={() => onTab('market')}
+          >
+            MARKET
+          </button>
+          <button
+            className={`view-tab${tab === 'portfolio' ? ' on' : ''}`}
+            aria-current={tab === 'portfolio'}
+            onClick={() => onTab('portfolio')}
+          >
+            PORTFOLIO
+          </button>
+        </nav>
+      </div>
       <div className="header-stats">
         {stale && <div className="reconnecting">RECONNECTING…</div>}
         <div>

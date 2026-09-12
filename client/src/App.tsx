@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { authFetch } from './api'
 import AuthScreen from './components/AuthScreen'
-import Header from './components/Header'
+import Header, { type Tab } from './components/Header'
 import Landing from './components/Landing'
 import LessonBox from './components/LessonBox'
 import Mascot from './components/Mascot'
 import SettingsPanel from './components/SettingsPanel'
 import MarketList from './components/MarketList'
+import PortfolioView from './components/PortfolioView'
 import TradePanel from './components/TradePanel'
 import './styles/pixel.css'
 import type { HistoryPoint, MarketPrices, Portfolio } from './types'
@@ -22,6 +23,7 @@ type View = 'landing' | 'game'
 
 export default function App() {
   const [view, setView] = useState<View>('landing')
+  const [tab, setTab] = useState<Tab>('market')
   const [market, setMarket] = useState<MarketPrices | null>(null)
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -133,6 +135,8 @@ export default function App() {
   return (
     <>
       <Header
+        tab={tab}
+        onTab={setTab}
         portfolio={portfolio}
         stale={stale}
         user={auth.user}
@@ -140,23 +144,33 @@ export default function App() {
         onLogout={auth.logout}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      <div className="layout">
-        <MarketList
-          rows={market.prices}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-        <TradePanel
-          athlete={selected}
-          history={history}
-          held={held}
-          signedIn={signedIn}
+      {tab === 'market' ? (
+        <div className="layout">
+          <MarketList
+            rows={market.prices}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+          <TradePanel
+            athlete={selected}
+            history={history}
+            held={held}
+            signedIn={signedIn}
+            portfolio={portfolio}
+            rows={market.prices}
+            onRequireLogin={() => setAuthOpen(true)}
+            onTraded={handleTraded}
+          />
+        </div>
+      ) : (
+        <PortfolioView
           portfolio={portfolio}
           rows={market.prices}
+          signedIn={signedIn}
           onRequireLogin={() => setAuthOpen(true)}
-          onTraded={handleTraded}
+          onGoToMarket={() => setTab('market')}
         />
-      </div>
+      )}
       <LessonBox />
       <Mascot state={lessonState} onDismiss={dismissLesson} />
       {settingsOpen && (

@@ -1176,3 +1176,336 @@ body {
   background: var(--line);
   color: var(--white);
 }
+
+/* --- view tabs --- */
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.view-tab {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 3px solid var(--line);
+  /* tabs butt together into one control rather than floating apart */
+  margin-left: -3px;
+  padding: 9px 11px;
+  cursor: pointer;
+}
+
+.view-tab:first-child {
+  margin-left: 0;
+}
+
+.view-tab:hover {
+  color: var(--white);
+}
+
+.view-tab.on {
+  color: var(--bg);
+  background: var(--amber);
+  border-color: var(--amber);
+  position: relative;
+  z-index: 1;
+}
+
+/* --- portfolio view --- */
+
+.pf {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pf-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pf-stat {
+  padding: 11px 12px;
+}
+
+.pf-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+
+.pf-stat-value {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--white);
+  /* long money values must shrink the box, not overflow it */
+  overflow-wrap: anywhere;
+}
+
+.pf-stat-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.pf-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+/* --- pie --- */
+
+.pie-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pie {
+  flex: none;
+  /* the offset shadow the rest of the chrome uses, kept hard */
+  filter: drop-shadow(4px 4px 0 #000);
+}
+
+.pie-legend {
+  list-style: none;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.pie-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 3px 0;
+  min-width: 0;
+}
+
+.pie-swatch {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--bg);
+  flex: none;
+}
+
+.pie-legend-name {
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pie-legend-pct {
+  margin-left: auto;
+  color: var(--muted);
+  flex: none;
+}
+
+/* --- sport breakdown --- */
+
+.sport-bar {
+  display: flex;
+  height: 22px;
+  border: 3px solid var(--line);
+  background: var(--panel2);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.sport-bar-seg {
+  height: 100%;
+  /* a hard divider, never a gradient */
+  box-shadow: inset -2px 0 0 var(--bg);
+}
+
+.sport-bar-seg:last-child {
+  box-shadow: none;
+}
+
+.sport-rows {
+  list-style: none;
+}
+
+.sport-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.sport-row-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+}
+
+.sport-row-value {
+  margin-left: auto;
+  color: var(--white);
+}
+
+.sport-row-pct {
+  color: var(--muted);
+  min-width: 48px;
+  text-align: right;
+}
+
+.sport-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* --- holdings table --- */
+
+.pf-sort {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 11px;
+}
+
+.pf-sort-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pf-sort-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 2px solid var(--line);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.pf-sort-btn.on {
+  color: var(--bg);
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+
+/* the table keeps its columns and scrolls sideways rather than squashing */
+.pf-table-scroll {
+  overflow-x: auto;
+}
+
+.pf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pf-table th {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  text-align: left;
+  font-weight: normal;
+  padding: 0 10px 9px 0;
+  border-bottom: 2px solid var(--line);
+}
+
+.pf-table td {
+  padding: 9px 10px 9px 0;
+  border-bottom: 2px solid var(--panel2);
+  color: var(--white);
+}
+
+.pf-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pf-table .num {
+  text-align: right;
+  padding-right: 0;
+}
+
+.pf-table th.num {
+  text-align: right;
+}
+
+.pf-name {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf-dim {
+  color: var(--muted);
+}
+
+/* --- empty + gated states --- */
+
+.pf-empty,
+.pf-gate {
+  text-align: center;
+  padding: 34px 20px;
+}
+
+.pf-empty-art {
+  font-size: 34px;
+  color: var(--line);
+  margin-bottom: 12px;
+}
+
+.pf-empty-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--amber);
+  margin-bottom: 10px;
+}
+
+.pf-empty-note,
+.pf-gate-msg {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+
+.pf-gate .panel-title {
+  text-align: left;
+}
+
+/* .btn has no side padding -- it is built to fill a .btn-row grid cell. These
+   two stand alone, so they have to size to their own label. */
+.pf-cta {
+  display: inline-block;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+@media (max-width: 900px) {
+  .pf-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pf-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
