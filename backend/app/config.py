@@ -148,3 +148,19 @@ MIN_PASSWORD_LENGTH = 8
 # bcrypt refuses anything longer than 72 bytes, so reject it up front with a
 # clear message rather than letting the hash call raise.
 MAX_PASSWORD_BYTES = 72
+
+
+# --- index funds -----------------------------------------------------------
+# Members per fund, and the weight each therefore carries. Equal-weighted to
+# start: it is the one weighting that needs no justification, and it keeps a
+# fund's price readable as "the average price of its members". Value-weighting
+# is a later change to FUND_WEIGHT alone.
+FUND_SIZE = 10
+FUND_WEIGHT = 1.0 / FUND_SIZE
+# An athlete needs this many real games before a fund rule may judge them.
+# Three was not enough: footballers have only the 3-4 matches ESPN exposes of
+# the in-progress season, and a 3-game sample has almost no spread, so they
+# swept the low-volatility fund on missing data rather than on being steady.
+# At ten, a player must have a real record before a fund calls them consistent
+# -- which currently excludes football from CONSISTENCY, honestly so.
+FUND_MIN_GAMES = 10

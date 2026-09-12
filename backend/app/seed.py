@@ -15,11 +15,12 @@ from app.adapters.nfl import NFLAdapter
 from app.adapters.nhl import NHLAdapter
 from app.adapters.soccer import SoccerAdapter
 from app.db import Base, SessionLocal, engine
+from app.funds import fund_rows, price_funds, seed_funds
 from app.gamelogs import load_game_logs
 from app.gamelogs_generic import load_game_logs_for
 from app.gamelogs_nfl import load_nfl_game_logs
 from app.ingest import ingest, prune_sport
-from app.models import Athlete, AthleteStat, Price
+from app.models import Athlete, AthleteStat, Fund, FundMember, Price
 from app.norms import baseline_price, compute_sport_norms, get_sport_norms
 from app.pricing import init_market, open_missing_prices
 
@@ -135,6 +136,21 @@ def report_soccer_baselines(session) -> None:
             )
 
 
+def report_funds(session) -> None:
+    """Print each fund's price and its membership."""
+    for row in fund_rows(session):
+        price = f"{row['price']:.2f}" if row["price"] is not None else "--"
+        print(f"     {row['code']:12} {price:>10}  {row['member_count']} members")
+        fund = session.scalar(select(Fund).where(Fund.id == row["fund_id"]))
+        members = session.execute(
+            select(Athlete, FundMember.weight)
+            .join(FundMember, FundMember.athlete_id == Athlete.id)
+            .where(FundMember.fund_id == fund.id)
+        ).all()
+        for athlete, weight in members:
+            print(f"         {athlete.name[:26]:26} {athlete.sport:4} w={float(weight):.2f}")
+
+
 def report_top_cross_sport(session, limit: int = 20) -> None:
     norms = get_sport_norms(session)
     rows = []
@@ -189,7 +205,7 @@ def main() -> None:
         report_soccer_baselines(session)
 
     print()
-    print("7/7 opening the market...")
+    print("7/8 opening the market...")
     with SessionLocal() as session:
         # init_market writes a fresh opening price for everyone, so only run it
         # on a market that has never been opened.
@@ -200,6 +216,14 @@ def main() -> None:
         else:
             opening = init_market(session)
             print(f"     opened {len(opening)} athletes at their baseline")
+
+    print()
+    print("8/8 seeding index funds...")
+    with SessionLocal() as session:
+        seed_funds(session)
+        # funds need an opening price of their own, from the members' opens
+        price_funds(session)
+        report_funds(session)
 
     print()
     print("CROSS-SPORT TOP 20 by baseline")

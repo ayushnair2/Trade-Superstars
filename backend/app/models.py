@@ -234,3 +234,57 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Fund(Base):
+    """An index fund: a fixed basket of athletes priced as one asset."""
+
+    __tablename__ = "funds"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    name: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+    members: Mapped[list["FundMember"]] = relationship(back_populates="fund")
+
+
+class FundMember(Base):
+    """One athlete's share of a fund. Weights across a fund sum to 1."""
+
+    __tablename__ = "fund_members"
+    __table_args__ = (
+        UniqueConstraint("fund_id", "athlete_id", name="uq_fund_athlete"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fund_id: Mapped[int] = mapped_column(ForeignKey("funds.id"))
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    weight: Mapped[Decimal] = mapped_column(Numeric(8, 6))
+
+    fund: Mapped["Fund"] = relationship(back_populates="members")
+    athlete: Mapped["Athlete"] = relationship()
+
+
+class FundPrice(Base):
+    """A fund's price over time.
+
+    Its own table rather than a nullable asset reference on prices: making
+    prices.athlete_id nullable would weaken that FK and change every athlete
+    price query -- the market window function, the history endpoint, pruning
+    and the portfolio's cost basis -- to serve a second asset type.
+    """
+
+    __tablename__ = "fund_prices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fund_id: Mapped[int] = mapped_column(ForeignKey("funds.id"), index=True)
+    price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
+
+    fund: Mapped["Fund"] = relationship()

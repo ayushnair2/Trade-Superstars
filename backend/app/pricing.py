@@ -30,6 +30,7 @@ from app.config import (
     TETHER,
     TICK_JITTER,
 )
+from app.funds import price_funds
 from app.norms import baseline_price, get_sport_norms
 from app.models import (
     Athlete,
@@ -253,6 +254,8 @@ def advance_price_tick(session, tick_index: int = 0) -> dict[str, float]:
 
     now = datetime.now(timezone.utc)
     prices = {}
+    # by id as well as name, so funds can be priced off this tick's numbers
+    priced: dict[int, float] = {}
     for athlete, stream in load_streams(session):
         athlete_state = _athlete_state(session, athlete.id)
         if athlete_state is None:
@@ -282,8 +285,12 @@ def advance_price_tick(session, tick_index: int = 0) -> dict[str, float]:
             )
         )
         prices[athlete.name] = round(new_price, 2)
+        priced[athlete.id] = new_price
 
     session.commit()
+
+    # funds ride on the athletes above and never feed back into them
+    price_funds(session, priced)
     return prices
 
 

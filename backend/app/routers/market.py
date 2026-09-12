@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.config import SPARK_WINDOW
 from app.db import get_session
+from app.funds import fund_rows
 from app.models import Athlete, Price
 from app.pricing import advance_game_day, advance_price_tick, get_state
 
@@ -114,4 +115,6 @@ def prices(session: Session = Depends(get_session)):
         "current_step": state.current_step,
         "current_day": state.current_day,
         "prices": _latest_prices(session),
+        # a separate key, so every existing reader of "prices" is unaffected
+        "funds": fund_rows(session),
     }
