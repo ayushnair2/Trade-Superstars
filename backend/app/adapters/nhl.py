@@ -7,7 +7,7 @@ from app.adapters.http import get_json
 from app.config import nhl_score
 
 SEASONS = ("20242025", "20232024")
-TOP_N = 25
+TOP_N = 50
 MIN_GAMES = 10
 
 STATS_BASE = "https://api.nhle.com/stats/rest/en/skater"

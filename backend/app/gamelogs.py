@@ -17,6 +17,7 @@ from app.config import perf_score
 from app.db import SessionLocal
 from app.models import Athlete, AthleteStat, GameLog
 
+SPORT = "NBA"
 TIMEOUT = 60
 RETRIES = 2
 THROTTLE_SECONDS = 0.6
@@ -66,7 +67,9 @@ def load_game_logs() -> list[tuple[str, int]]:
     loaded = []
 
     with SessionLocal() as session:
-        athletes = session.scalars(select(Athlete).order_by(Athlete.id)).all()
+        athletes = session.scalars(
+            select(Athlete).where(Athlete.sport == SPORT).order_by(Athlete.id)
+        ).all()
 
         for athlete in athletes:
             rows = []

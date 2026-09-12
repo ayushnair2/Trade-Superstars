@@ -18,6 +18,8 @@ from sqlalchemy import delete, func, select
 
 from app.config import (
     FORM_WINDOW,
+    FUT_DEFAULT_MOVE_WEIGHT,
+    FUT_MOVE_WEIGHTS,
     PRICE_HISTORY_KEEP,
     PRICE_Z_SCALE,
     MARKET_SEED,
@@ -44,14 +46,48 @@ def _rng(seed: int, athlete_id: int, step: int, purpose: str) -> random.Random:
     return random.Random(f"{seed}:{athlete_id}:{step}:{purpose}")
 
 
+def move_weight(athlete: Athlete) -> float:
+    """How much this athlete's per-game output may move their price.
+
+    Only football damps: its per-game feed sees goals, assists and shots and
+    nothing else, so letting it swing a centre-back or keeper the way it swings
+    a striker would be reading noise. Every other sport measures what its
+    athletes are actually paid for, so their output moves them fully.
+    """
+    if athlete.sport != "FUT":
+        return 1.0
+    return FUT_MOVE_WEIGHTS.get(athlete.position or "", FUT_DEFAULT_MOVE_WEIGHT)
+
+
 class AthleteStream:
     """An athlete's perf_score over time: real games first, then simulated."""
 
-    def __init__(self, athlete_id: int, mean: float, std: float, games: list[float]):
+    def __init__(
+        self,
+        athlete_id: int,
+        mean: float,
+        std: float,
+        games: list[float],
+        stats: dict[str, float] | None = None,
+    ):
         self.athlete_id = athlete_id
         self.mean = mean
         self.std = std
         self.games = games
+        # kept whole so the sport's anchor stat can be read by name
+        self.stats = stats or {}
+
+    def anchor(self, norm) -> float:
+        """The value this athlete is priced off, per their sport's anchor stat.
+
+        Missing it means the sport's anchor is on a scale we have no reading of
+        for this athlete -- a footballer who has dropped out of the value
+        ranking but is still held by someone. Returning the sport's own mean
+        prices them as an average athlete of it; falling back to perf_mean would
+        compare a goals-per-game number against a euro one and floor them.
+        """
+        value = self.stats.get(norm.anchor_stat)
+        return float(norm.mean_anchor) if value is None else value
 
     def perf_at(self, seed: int, step: int) -> float:
         if step < len(self.games):
@@ -89,6 +125,7 @@ def load_streams(session) -> list[tuple[Athlete, AthleteStream]]:
                     stats.get("perf_mean", 0.0),
                     stats.get("perf_std", 0.0),
                     games,
+                    stats,
                 ),
             )
         )
@@ -127,7 +164,7 @@ def init_market(session) -> dict[str, float]:
         norm = norms.get(athlete.sport)
         if norm is None:
             continue
-        price = baseline_price(stream.mean, norm)
+        price = baseline_price(stream.anchor(norm), norm)
         session.add(
             Price(
                 athlete_id=athlete.id,
@@ -164,7 +201,7 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
             # no norms computed for this sport yet; nothing to price against
             continue
 
-        baseline = baseline_price(stream.mean, norm)
+        baseline = baseline_price(stream.anchor(norm), norm)
         # form_at averages the last FORM_WINDOW game-days of the stream, and the
         # gap is expressed in standard deviations so it is sport-independent
         gap_z = (stream.form_at(seed, day) - stream.mean) / float(norm.std_perf)
@@ -173,7 +210,8 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
             -REACTION_JITTER, REACTION_JITTER
         )
         reaction = OVERREACTION * (1 + jitter)
-        target = baseline + reaction * gap_z * PRICE_Z_SCALE
+        weight = move_weight(athlete)
+        target = baseline + weight * reaction * gap_z * PRICE_Z_SCALE
 
         athlete_state = _athlete_state(session, athlete.id)
         if athlete_state is None:
@@ -192,6 +230,7 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
         results[athlete.name] = {
             "perf": round(stream.perf_at(seed, day), 2),
             "gap_z": round(gap_z, 2),
+            "move_weight": weight,
             "baseline": round(baseline, 2),
             "target": round(target, 2),
         }
@@ -287,7 +326,7 @@ def open_missing_prices(session) -> dict[str, float]:
         norm = norms.get(athlete.sport)
         if norm is None:
             continue
-        price = baseline_price(stream.mean, norm)
+        price = baseline_price(stream.anchor(norm), norm)
         session.add(
             Price(
                 athlete_id=athlete.id,

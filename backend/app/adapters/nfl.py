@@ -15,7 +15,7 @@ os.environ.setdefault("SSL_CERT_FILE", certifi.where())
 import nfl_data_py as nfl  # noqa: E402  (must follow the SSL_CERT_FILE default)
 
 SEASONS = (2025, 2024)
-TOP_N = 25
+TOP_N = 50
 MIN_GAMES = 5
 
 # nfl_data_py column -> our scoring key. Fumbles are split across three columns

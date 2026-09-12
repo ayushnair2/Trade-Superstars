@@ -7,7 +7,7 @@ from nba_api.stats.endpoints import leaguedashplayerstats
 from app.adapters.base import AthleteData, SportAdapter
 
 SEASONS = ("2025-26", "2024-25")
-TOP_N = 20
+TOP_N = 50
 TIMEOUT = 60
 RETRIES = 2
 

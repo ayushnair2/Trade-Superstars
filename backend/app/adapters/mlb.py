@@ -7,7 +7,7 @@ from app.adapters.http import get_json
 from app.config import mlb_score
 
 SEASONS = (2025, 2024)
-TOP_N = 25
+TOP_N = 50
 MIN_GAMES = 20
 
 BASE = "https://statsapi.mlb.com/api/v1"

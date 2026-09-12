@@ -34,6 +34,9 @@ class Athlete(Base):
     name: Mapped[str] = mapped_column(String(120))
     sport: Mapped[str] = mapped_column(String(40))
     team: Mapped[str] = mapped_column(String(80))
+    # the source's own position code, when it publishes one (football: F/M/D/G).
+    # Drives how far per-game output may move a price -- see FUT_MOVE_WEIGHTS.
+    position: Mapped[str | None] = mapped_column(String(20), nullable=True)
     external_ref: Mapped[str] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
@@ -190,7 +193,13 @@ class Settings(Base):
 
 
 class SportNorm(Base):
-    """Per-sport perf_mean distribution, so prices compare across sports."""
+    """Per-sport distributions, so prices compare across sports.
+
+    Two of them. mean_perf/std_perf describe game-to-game production and scale
+    how far form moves a price. mean_anchor/std_anchor describe whatever sets
+    the sport's price LEVEL -- production for most sports, market value for
+    football, where the free per-game data cannot see defending.
+    """
 
     __tablename__ = "sport_norms"
 
@@ -198,6 +207,10 @@ class SportNorm(Base):
     sport: Mapped[str] = mapped_column(String(40), unique=True)
     mean_perf: Mapped[Decimal] = mapped_column(Numeric(10, 4))
     std_perf: Mapped[Decimal] = mapped_column(Numeric(10, 4))
+    # which AthleteStat key the anchor distribution was built from
+    anchor_stat: Mapped[str] = mapped_column(String(40), default="perf_mean")
+    mean_anchor: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=0)
+    std_anchor: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=1)
     athlete_count: Mapped[int] = mapped_column()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

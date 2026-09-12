@@ -18,6 +18,8 @@ class AthleteData:
     team: str
     external_ref: str
     stats: dict[str, float] = field(default_factory=dict)
+    # the source's own position code, where it publishes one
+    position: str | None = None
 
 
 @dataclass

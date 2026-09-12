@@ -123,6 +123,24 @@ def fut_score(stats: dict[str, float]) -> float:
     return sum(w * stats.get(k, 0.0) for k, w in FUT_WEIGHTS.items())
 
 
+# --- Football (FUT) value anchoring ----------------------------------------
+# Football is the one sport whose price LEVEL does not come from the stats we
+# can get. Free per-game football data is attacking-only (goals, assists, shots
+# on target): tackles, interceptions, clearances, blocks, key passes and xG are
+# all unavailable per match, so a centre-back's or keeper's production reads as
+# ~0 no matter how good they are. Ranking on it selected only attackers.
+#
+# So a footballer's baseline comes from MARKET VALUE (see ANCHOR_STATS in
+# norms.py) and per-game output only moves them around that level -- damped by
+# position, because the further a position's real contribution sits from
+# "goals and assists", the less the data we have deserves to move the price.
+FUT_MOVE_WEIGHTS = {"F": 1.0, "M": 0.8, "D": 0.35, "G": 0.25}
+# an unknown/unpublished position moves like a midfielder
+FUT_DEFAULT_MOVE_WEIGHT = 0.8
+# How many of the value ranking's players to carry into the market.
+FUT_VALUE_TOP_N = 50
+
+
 # --- auth ------------------------------------------------------------------
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_DAYS = 7
