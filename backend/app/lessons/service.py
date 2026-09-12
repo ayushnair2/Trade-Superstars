@@ -60,6 +60,12 @@ FALLBACK_LESSONS = {
     ),
 }
 
+# Used when a concept reaches the fallback without one of its own -- a fund
+# sell lands on TAKE_GAINS or CUT_LOSSES, which are normally player-specific.
+GENERIC_FALLBACK = (
+    "That move is in. Every trade teaches you something about how you react."
+)
+
 # Skip initials and particles ("Jr", "de", "Bo") that would match ordinary prose.
 MIN_NAME_TOKEN = 4
 
@@ -100,8 +106,8 @@ def cites_a_figure(text: str) -> bool:
     return FIGURE.search(text) is not None
 
 
-def assert_shareable(session, concept: Concept, text: str) -> None:
-    """Refuse to cache a global lesson that carries anything user-specific.
+def assert_shareable(session, shared: bool, concept: Concept, text: str) -> None:
+    """Refuse to cache a shared lesson that carries anything user-specific.
 
     cache_key() collapses a global concept to one row served to every user, so
     its text has to hold true for all of them: no player name, and no fact about
@@ -109,12 +115,12 @@ def assert_shareable(session, concept: Concept, text: str) -> None:
     here at the write rather than in the generator so a future global concept
     cannot bypass it and silently show one user's numbers to the next.
     """
-    if concept not in GLOBAL_CONCEPTS:
+    if not shared:
         return
     if names_a_player(text, athlete_name_tokens(session)):
-        raise ValueError(f"global lesson {concept} names a player: {text!r}")
+        raise ValueError(f"shared lesson {concept} names a player: {text!r}")
     if cites_a_figure(text):
-        raise ValueError(f"global lesson {concept} cites a figure: {text!r}")
+        raise ValueError(f"shared lesson {concept} cites a figure: {text!r}")
 
 
 def _global_text(session, concept: Concept, side: Side, provider) -> str:
@@ -125,8 +131,8 @@ def _global_text(session, concept: Concept, side: Side, provider) -> str:
         text = provider.generate(SYSTEM_PROMPT, prompt)
         if not names_a_player(text, tokens) and not cites_a_figure(text):
             return text
-    # never cache a global lesson that names a player or quotes a number
-    return FALLBACK_LESSONS[concept]
+    # never cache a shared lesson that names a player or quotes a number
+    return FALLBACK_LESSONS.get(concept, GENERIC_FALLBACK)
 
 
 def lesson_for_trade(session, trade: Trade) -> dict:
@@ -138,7 +144,11 @@ def lesson_for_trade(session, trade: Trade) -> dict:
         return {"concept": str(concept), "text": cached.text, "cached": True}
 
     provider = get_provider()
-    if concept in GLOBAL_CONCEPTS:
+    # A fund trade has no athlete, so its lesson is cached under the concept
+    # alone and served to everyone -- the same contract as a global concept,
+    # and it has to clear the same bar.
+    shared = concept in GLOBAL_CONCEPTS or trade.athlete_id is None
+    if shared:
         text = _global_text(session, concept, trade.side, provider)
     else:
         athlete = session.get(Athlete, trade.athlete_id)
@@ -146,7 +156,7 @@ def lesson_for_trade(session, trade: Trade) -> dict:
             SYSTEM_PROMPT, _user_prompt(concept, athlete.name, trade.side)
         )
 
-    assert_shareable(session, concept, text)
+    assert_shareable(session, shared, concept, text)
     session.add(Lesson(cache_key=key, concept=str(concept), text=text))
     session.commit()
     return {"concept": str(concept), "text": text, "cached": False}

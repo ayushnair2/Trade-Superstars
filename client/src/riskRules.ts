@@ -39,6 +39,12 @@ function holdingValue(holdings: HoldingRow[], athleteId: number): number {
   return holdings.find((h) => h.athlete_id === athleteId)?.market_value ?? 0
 }
 
+/** A fund is already a basket of ten players, so concentrating in one is not
+ *  the single-player risk this rule is about. Its value still counts toward
+ *  the sport and cash rules, which are about the portfolio as a whole. */
+const isFund = (holding: HoldingRow) =>
+  holding.asset_type === 'fund' || holding.fund_id != null
+
 /** Advisory only -- the backend still decides whether a trade is allowed. */
 export function evaluateTrade(
   side: 'buy' | 'sell',
@@ -49,14 +55,20 @@ export function evaluateTrade(
 ): Warning[] {
   if (!portfolio || athlete.price === null || quantity <= 0) return []
 
+  // a fund buy is a basket, never a bet on one player
+  const buyingFund = (athlete as { asset_type?: string }).asset_type === 'fund'
+
   const warnings: Warning[] = []
   const price = athlete.price
   const cost = price * quantity
   const total = portfolio.total_value
 
   if (side === 'buy') {
-    // buying moves cash into holdings at the same price, so the total is unchanged
-    if (total > 0) {
+    // Buying moves cash into holdings at the same price, so the total is
+    // unchanged. Both concentration rules are about betting on one name or one
+    // sport, and a fund is neither -- it is ten players across several. The
+    // cash and chasing rules below still apply: they are about any asset.
+    if (total > 0 && !buyingFund) {
       const after = holdingValue(portfolio.holdings, athlete.athlete_id) + cost
       const share = (after / total) * 100
       if (share > RISK_THRESHOLDS.playerConcentrationPct) {
@@ -70,7 +82,7 @@ export function evaluateTrade(
 
       const sportOf = new Map(rows.map((row) => [row.athlete_id, row.sport]))
       const sameSport = portfolio.holdings
-        .filter((h) => sportOf.get(h.athlete_id) === athlete.sport)
+        .filter((h) => !isFund(h) && sportOf.get(h.athlete_id ?? -1) === athlete.sport)
         .reduce((sum, h) => sum + h.market_value, 0)
       const sportShare = ((sameSport + cost) / total) * 100
       if (sportShare > RISK_THRESHOLDS.sportConcentrationPct) {

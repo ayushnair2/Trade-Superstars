@@ -13,7 +13,9 @@ export type MarketPrices = {
 }
 
 export type HoldingRow = {
-  athlete_id: number
+  asset_type?: 'athlete' | 'fund'
+  athlete_id: number | null
+  fund_id?: number | null
   name: string
   quantity: number
   avg_cost: number

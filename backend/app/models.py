@@ -27,6 +27,21 @@ class Side(enum.Enum):
     sell = "sell"
 
 
+class AssetType(str, enum.Enum):
+    """What a holding or trade refers to. Stored as plain text, not a PG enum,
+    so adding a third asset type later is a column value, not a type migration."""
+
+    athlete = "athlete"
+    fund = "fund"
+
+
+# exactly one asset reference per row -- never both, never neither
+ONE_ASSET = (
+    "(athlete_id IS NOT NULL AND fund_id IS NULL) OR "
+    "(athlete_id IS NULL AND fund_id IS NOT NULL)"
+)
+
+
 class Athlete(Base):
     __tablename__ = "athletes"
 
@@ -71,10 +86,15 @@ class Price(Base):
 
 class Trade(Base):
     __tablename__ = "trades"
+    __table_args__ = (CheckConstraint(ONE_ASSET, name="ck_trade_one_asset"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    asset_type: Mapped[str] = mapped_column(String(10), default=AssetType.athlete.value)
+    athlete_id: Mapped[int | None] = mapped_column(
+        ForeignKey("athletes.id"), nullable=True
+    )
+    fund_id: Mapped[int | None] = mapped_column(ForeignKey("funds.id"), nullable=True)
     side: Mapped[Side] = mapped_column(Enum(Side, name="trade_side"))
     quantity: Mapped[int] = mapped_column()
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
@@ -88,12 +108,21 @@ class Trade(Base):
 class Holding(Base):
     __tablename__ = "holdings"
     __table_args__ = (
+        # One row per user per asset. Postgres lets NULLs repeat in a unique
+        # index, so the athlete pair stays unique for athlete rows and the
+        # fund pair for fund rows, without either blocking the other.
         UniqueConstraint("user_id", "athlete_id", name="uq_user_athlete_holding"),
+        UniqueConstraint("user_id", "fund_id", name="uq_user_fund_holding"),
+        CheckConstraint(ONE_ASSET, name="ck_holding_one_asset"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id"))
+    asset_type: Mapped[str] = mapped_column(String(10), default=AssetType.athlete.value)
+    athlete_id: Mapped[int | None] = mapped_column(
+        ForeignKey("athletes.id"), nullable=True
+    )
+    fund_id: Mapped[int | None] = mapped_column(ForeignKey("funds.id"), nullable=True)
     quantity: Mapped[int] = mapped_column(default=0)
     avg_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
 

@@ -75,11 +75,14 @@ def pick_concept(session, trade: Trade) -> Concept:
         return Concept.WELCOME
 
     if trade.side is Side.sell:
+        # matched on the same asset the trade names, athlete or fund
+        asset_match = (
+            Holding.fund_id == trade.fund_id
+            if trade.fund_id is not None
+            else Holding.athlete_id == trade.athlete_id
+        )
         holding = session.scalar(
-            select(Holding).where(
-                Holding.user_id == trade.user_id,
-                Holding.athlete_id == trade.athlete_id,
-            )
+            select(Holding).where(Holding.user_id == trade.user_id, asset_match)
         )
         # avg_cost is untouched by a sell, so it is still the cost basis sold against.
         if holding is not None:
@@ -94,13 +97,18 @@ def pick_concept(session, trade: Trade) -> Concept:
     elif _distinct_holdings(session, trade.user_id) >= DIVERSIFIED_HOLDINGS:
         return Concept.DIVERSIFICATION
 
-    else:
+    elif trade.athlete_id is not None:
         move = _recent_move_pct(session, trade.athlete_id, trade.price)
         if move is not None:
             if move >= NOTABLE_MOVE_PCT:
                 return Concept.CHASING
             if move <= -NOTABLE_MOVE_PCT:
                 return Concept.BUY_LOW
+
+    # A fund is a basket, not a player: it has no sport, no perf_std and no
+    # character of its own to teach, so buying one lands on diversification.
+    if trade.athlete_id is None:
+        return Concept.DIVERSIFICATION
 
     # Volatility is judged against the athlete's own sport, so a swingy NBA
     # guard and a swingy NFL receiver both read as volatile on their own terms.
@@ -112,7 +120,8 @@ def pick_concept(session, trade: Trade) -> Concept:
     return Concept.STABILITY
 
 
-def cache_key(concept: Concept, athlete_id: int) -> str:
-    if concept in GLOBAL_CONCEPTS:
+def cache_key(concept: Concept, athlete_id: int | None) -> str:
+    if concept in GLOBAL_CONCEPTS or athlete_id is None:
+        # nothing athlete-specific to key on; the text must suit every asset
         return str(concept)
     return f"{concept}:{athlete_id}"
