@@ -41,6 +41,13 @@ class Athlete(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
+    # Set when an athlete leaves the market but cannot be deleted, because
+    # trades.athlete_id is NOT NULL and past trades are real events we keep.
+    # Retired athletes are excluded from pricing and the market list, so they
+    # neither quote a price nor accrue new state.
+    retired_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     prices: Mapped[list["Price"]] = relationship(back_populates="athlete")
     trades: Mapped[list["Trade"]] = relationship(back_populates="athlete")

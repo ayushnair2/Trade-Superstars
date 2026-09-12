@@ -60,7 +60,9 @@ def _latest_prices(session: Session) -> list[dict]:
     series = _recent_prices(session)
 
     rows = []
-    for athlete in session.scalars(select(Athlete)).all():
+    for athlete in session.scalars(
+        select(Athlete).where(Athlete.retired_at.is_(None))
+    ).all():
         prices = series.get(athlete.id, [])
         spark = prices[-SPARK_WINDOW:]
         rows.append(

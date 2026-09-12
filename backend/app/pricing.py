@@ -101,8 +101,12 @@ class AthleteStream:
 
 
 def load_streams(session) -> list[tuple[Athlete, AthleteStream]]:
+    """Every tradeable athlete's perf stream. Retired athletes are excluded, so
+    they get no new targets and no new price rows."""
     streams = []
-    for athlete in session.scalars(select(Athlete).order_by(Athlete.id)).all():
+    for athlete in session.scalars(
+        select(Athlete).where(Athlete.retired_at.is_(None)).order_by(Athlete.id)
+    ).all():
         stats = {
             s.stat_key: float(s.value)
             for s in session.scalars(
