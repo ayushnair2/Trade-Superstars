@@ -20,7 +20,9 @@ export default function RiskDialog({ warnings, onCancel, onProceed }: Props) {
         <ul className="risk-list">
           {warnings.map((warning) => (
             <li key={warning.id} className="risk-item">
-              {warning.message}
+              <div className="risk-name">{warning.title}</div>
+              <div className="risk-why">{warning.body}</div>
+              <div className="risk-detail">{warning.detail}</div>
             </li>
           ))}
         </ul>

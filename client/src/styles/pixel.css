@@ -1091,6 +1091,11 @@ body {
 
 .risk-panel {
   border-color: var(--amber);
+  /* Four warnings can fire on one buy, which overflowed the viewport and
+     pushed CANCEL/PROCEED off-screen. Cap the panel and scroll the list. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
 }
 
 .risk-title {
@@ -1101,16 +1106,41 @@ body {
   list-style: none;
   margin: 4px 0 16px;
   padding: 0;
+  /* the actions below must stay reachable however many warnings there are */
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .risk-item {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--white);
   background: var(--panel2);
   border-left: 3px solid var(--amber);
   padding: 9px 10px;
   margin-bottom: 8px;
+}
+
+/* the concept being taught, so it reads as the headline of the warning */
+.risk-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--amber);
+  margin-bottom: 7px;
+}
+
+.risk-why {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* Silkscreen, not Press Start 2P: this line carries athlete names, and PS2P
+   claims coverage of accented glyphs it cannot actually draw (Dončić). */
+.risk-detail {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--white);
 }
 
 .risk-mute {

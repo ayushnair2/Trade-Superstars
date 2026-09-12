@@ -19,7 +19,19 @@ export type RiskId =
   | 'CHASING_BUY'
   | 'PANIC_SELL'
 
-export type Warning = { id: RiskId; message: string }
+/**
+ * Three parts so the dialog can style them differently: the concept being
+ * taught, why it matters in general, and what it means for this trade.
+ */
+export type Warning = {
+  id: RiskId
+  /** the concept's name, shown prominently */
+  title: string
+  /** one line on why this is risky, in general */
+  body: string
+  /** this trade's actual number */
+  detail: string
+}
 
 const pct = (value: number) => `${Math.round(value)}%`
 
@@ -50,7 +62,9 @@ export function evaluateTrade(
       if (share > RISK_THRESHOLDS.playerConcentrationPct) {
         warnings.push({
           id: 'PLAYER_CONCENTRATION',
-          message: `This puts ${pct(share)} of your portfolio in ${athlete.name}.`,
+          title: 'Concentration risk',
+          body: 'Putting too much into one player means one bad stretch hits your whole portfolio.',
+          detail: `This would put ${pct(share)} of your portfolio in ${athlete.name}.`,
         })
       }
 
@@ -62,7 +76,9 @@ export function evaluateTrade(
       if (sportShare > RISK_THRESHOLDS.sportConcentrationPct) {
         warnings.push({
           id: 'SPORT_CONCENTRATION',
-          message: `This puts ${pct(sportShare)} of your portfolio in ${athlete.sport}.`,
+          title: 'Lack of diversification',
+          body: 'Leaning on one sport ties your fortunes to it. Spreading across sports smooths the ride.',
+          detail: `This would put ${pct(sportShare)} of your portfolio in ${athlete.sport}.`,
         })
       }
     }
@@ -72,7 +88,9 @@ export function evaluateTrade(
       if (spend > RISK_THRESHOLDS.cashSpendPct) {
         warnings.push({
           id: 'HIGH_CASH_SPEND',
-          message: `This spends ${pct(spend)} of your cash on one trade.`,
+          title: 'Over-committing capital',
+          body: 'Spending most of your cash at once leaves nothing to react with or buy dips. Traders usually keep some in reserve.',
+          detail: `This uses ${pct(spend)} of your cash.`,
         })
       }
     }
@@ -80,7 +98,9 @@ export function evaluateTrade(
     if ((athlete.change_pct ?? 0) >= RISK_THRESHOLDS.chasingChangePct) {
       warnings.push({
         id: 'CHASING_BUY',
-        message: `${athlete.name} has spiked recently — you may be buying high.`,
+        title: 'Chasing / buying the top',
+        body: 'Buying right after a sharp run-up often means paying a peak price, just before it cools.',
+        detail: `${athlete.name} is up sharply recently.`,
       })
     }
   }
@@ -93,7 +113,9 @@ export function evaluateTrade(
     if (atLoss && (athlete.change_pct ?? 0) < 0) {
       warnings.push({
         id: 'PANIC_SELL',
-        message: `You're selling ${athlete.name} at a loss during a dip.`,
+        title: 'Panic selling',
+        body: 'Selling into a dip locks in the loss and misses a possible rebound.',
+        detail: `You'd be selling ${athlete.name} at a loss during a downswing.`,
       })
     }
   }
