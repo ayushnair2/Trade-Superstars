@@ -84,11 +84,14 @@ def get_current_user(
         # expired, wrong signature, malformed -- all the same to the caller
         raise _unauthorized() from None
 
-    subject = payload.get("sub")
-    if not subject:
-        raise _unauthorized()
+    # a missing or non-numeric subject is a token we did not issue -- 401, not
+    # a 500 from int()
+    try:
+        user_id = int(payload["sub"])
+    except (KeyError, TypeError, ValueError):
+        raise _unauthorized() from None
 
-    user = session.scalar(select(User).where(User.id == int(subject)))
+    user = session.scalar(select(User).where(User.id == user_id))
     if user is None:
         # token was valid but the account is gone
         raise _unauthorized()

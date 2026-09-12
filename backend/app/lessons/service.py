@@ -91,15 +91,41 @@ def names_a_player(text: str, tokens: set[str]) -> bool:
     return any(re.search(rf"\b{re.escape(token)}\b", text) for token in tokens)
 
 
+# Any figure in a shared lesson is a fact about one trader -- their cash, their
+# holdings count, their P&L. Currency, percents and bare numbers are the tell.
+FIGURE = re.compile(r"[\d$%]")
+
+
+def cites_a_figure(text: str) -> bool:
+    return FIGURE.search(text) is not None
+
+
+def assert_shareable(session, concept: Concept, text: str) -> None:
+    """Refuse to cache a global lesson that carries anything user-specific.
+
+    cache_key() collapses a global concept to one row served to every user, so
+    its text has to hold true for all of them: no player name, and no fact about
+    the account that triggered it (cash, holdings count, gain or loss). Checked
+    here at the write rather than in the generator so a future global concept
+    cannot bypass it and silently show one user's numbers to the next.
+    """
+    if concept not in GLOBAL_CONCEPTS:
+        return
+    if names_a_player(text, athlete_name_tokens(session)):
+        raise ValueError(f"global lesson {concept} names a player: {text!r}")
+    if cites_a_figure(text):
+        raise ValueError(f"global lesson {concept} cites a figure: {text!r}")
+
+
 def _global_text(session, concept: Concept, side: Side, provider) -> str:
     """Generate a player-agnostic lesson, retrying once, then falling back."""
     prompt = _user_prompt(concept, None, side)
     tokens = athlete_name_tokens(session)
     for _ in range(2):
         text = provider.generate(SYSTEM_PROMPT, prompt)
-        if not names_a_player(text, tokens):
+        if not names_a_player(text, tokens) and not cites_a_figure(text):
             return text
-    # never cache a global lesson that names a player
+    # never cache a global lesson that names a player or quotes a number
     return FALLBACK_LESSONS[concept]
 
 
@@ -120,6 +146,7 @@ def lesson_for_trade(session, trade: Trade) -> dict:
             SYSTEM_PROMPT, _user_prompt(concept, athlete.name, trade.side)
         )
 
+    assert_shareable(session, concept, text)
     session.add(Lesson(cache_key=key, concept=str(concept), text=text))
     session.commit()
     return {"concept": str(concept), "text": text, "cached": False}

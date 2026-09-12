@@ -29,6 +29,9 @@ def _get_portfolio(session: Session, user: User) -> Portfolio:
         select(Portfolio).where(Portfolio.user_id == user.id)
     )
     if portfolio is None:
+        # unlocked read-then-insert: two simultaneous first requests from the
+        # same user would race, and unique(user_id) fails the loser with a 500
+        # rather than creating a second portfolio. Acceptable at this scale.
         portfolio = Portfolio(user_id=user.id)
         session.add(portfolio)
         session.flush()

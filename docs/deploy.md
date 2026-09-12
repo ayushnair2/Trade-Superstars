@@ -13,9 +13,10 @@ Backend on Render, frontend on Vercel, Postgres on Neon.
 | `JWT_SECRET` | yes | (64 random chars) | Signs auth tokens (HS256). Generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Must be at least 32 bytes; the backend refuses to issue tokens without it. Changing it invalidates every existing session. |
 | `ALLOWED_ORIGINS` | yes | `https://trade-superstars.vercel.app` | Comma-separated list of origins allowed by CORS. Defaults to `http://localhost:5173` if unset, which will block the deployed frontend. |
 | `PORT` | no | `10000` | Render sets this automatically. |
+| `ENABLE_MANUAL_TICK` | no | (unset) | Leave unset in production. Set to `1` locally to expose `POST /market/advance-day` and `POST /market/price-tick`, the manual dev controls; they mutate market state shared by every user, so in production the background ticker runs the market instead and the routes return 404. |
 
 `DATABASE_URL` is read in `app/db.py`; `GROQ_API_KEY` in `app/lessons/provider.py`;
-`JWT_SECRET` in `app/auth.py`. All
+`JWT_SECRET` in `app/auth.py`; `ENABLE_MANUAL_TICK` in `app/routers/market.py`. All
 come from the process environment, so no `.env` file is needed in production —
 `backend/.env` is for local dev only and is gitignored.
 

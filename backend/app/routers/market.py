@@ -1,13 +1,29 @@
-from fastapi import APIRouter, Depends
+import os
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.config import SPARK_WINDOW
 from app.db import get_session
 from app.models import Athlete, Price
 from app.pricing import advance_game_day, advance_price_tick, get_state
 
 router = APIRouter(prefix="/market", tags=["market"])
+
+TRUTHY = {"1", "true", "yes", "on"}
+
+
+def require_manual_tick() -> None:
+    """Manual market control is a local dev/testing tool only.
+
+    In production the background ticker drives the market, so these routes stay
+    off unless ENABLE_MANUAL_TICK is set -- they mutate state shared by every
+    user. 404 rather than 403 so a disabled build looks like it has no such route.
+    """
+    if (os.environ.get("ENABLE_MANUAL_TICK") or "").lower() not in TRUTHY:
+        raise HTTPException(status_code=404, detail="Not Found")
 
 
 def _recent_prices(session: Session) -> dict[int, list[float]]:
@@ -60,7 +76,10 @@ def _latest_prices(session: Session) -> list[dict]:
     return sorted(rows, key=lambda r: (r["price"] is not None, r["price"]), reverse=True)
 
 
-@router.post("/advance-day")
+@router.post(
+    "/advance-day",
+    dependencies=[Depends(require_manual_tick), Depends(get_current_user)],
+)
 def advance_day(session: Session = Depends(get_session)):
     """Run one game-day: new game per athlete, new form, new targets."""
     results = advance_game_day(session)
@@ -71,7 +90,10 @@ def advance_day(session: Session = Depends(get_session)):
     }
 
 
-@router.post("/price-tick")
+@router.post(
+    "/price-tick",
+    dependencies=[Depends(require_manual_tick), Depends(get_current_user)],
+)
 def price_tick(tick_index: int = 0, session: Session = Depends(get_session)):
     """Run one price tick: move every price toward its stored target."""
     prices = advance_price_tick(session, tick_index)
