@@ -1,9 +1,11 @@
+import json
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import cache
 from app.auth import get_current_user
 from app.config import SPARK_WINDOW
 from app.db import get_session
@@ -108,8 +110,14 @@ def price_tick(tick_index: int = 0, session: Session = Depends(get_session)):
     }
 
 
-@router.get("/prices")
-def prices(session: Session = Depends(get_session)):
+def market_payload(session: Session) -> dict:
+    """The full /market/prices body, built from Postgres.
+
+    The one definition of this response. Both the endpoint and the ticker's
+    write-through call it, so what gets cached cannot drift in shape from what
+    a cache miss would build -- including current_step, which is part of the
+    snapshot rather than something stamped on at response time.
+    """
     state = get_state(session)
     return {
         "current_step": state.current_step,
@@ -118,3 +126,23 @@ def prices(session: Session = Depends(get_session)):
         # a separate key, so every existing reader of "prices" is unaffected
         "funds": fund_rows(session),
     }
+
+
+def serialize_payload(payload: dict) -> bytes:
+    return json.dumps(payload).encode()
+
+
+@router.get("/prices")
+def prices(session: Session = Depends(get_session)):
+    # A hit returns the bytes the ticker already serialized, skipping both the
+    # query and the re-serialization. Returning a Response rather than a dict
+    # keeps FastAPI from decoding and re-encoding what is already JSON.
+    cached = cache.read_prices()
+    if cached is not None:
+        return Response(content=cached, media_type="application/json")
+
+    # Miss, or Redis unreachable: Postgres answers and we repopulate. Same
+    # bytes either way, so a hit and a miss are indistinguishable to a client.
+    body = serialize_payload(market_payload(session))
+    cache.write_prices(body)
+    return Response(content=body, media_type="application/json")

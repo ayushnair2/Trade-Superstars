@@ -62,6 +62,12 @@ SPARK_WINDOW = 12
 PRICE_HISTORY_KEEP = 500
 # Seconds between automatic market advances.
 TICK_INTERVAL_SECONDS = 3
+# How long a cached prices snapshot may live without being rewritten. The
+# ticker refreshes the key on every tick, so in normal running the TTL never
+# fires -- it is the backstop for the case where the ticker dies, so a stale
+# snapshot expires instead of being served forever. Eight ticks of slack keeps
+# it from expiring between two normally-spaced ticks.
+PRICE_CACHE_TTL = TICK_INTERVAL_SECONDS * 8
 
 
 # --- AI lessons -------------------------------------------------------------

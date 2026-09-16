@@ -16,5 +16,18 @@ services:
       timeout: 5s
       retries: 20
 
+  cache:
+    image: redis:7
+    container_name: trade-superstars-cache
+    ports:
+      - "6379:6379"
+    # No persistence tuning and no volume: this cache is disposable. Losing it
+    # costs a few Postgres queries, never data -- Postgres is the source of truth.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
 volumes:
   postgres_data:

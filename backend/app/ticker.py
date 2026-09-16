@@ -15,6 +15,7 @@ import random
 
 from sqlalchemy import select
 
+from app import cache
 from app.db import SessionLocal
 from app.models import Settings
 from app.pricing import (
@@ -23,6 +24,7 @@ from app.pricing import (
     get_state,
     prune_price_history,
 )
+from app.routers.market import market_payload, serialize_payload
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +67,27 @@ def _prune() -> int:
         return prune_price_history(session)
 
 
+def _publish_prices(session) -> None:
+    """Write-through: push the just-committed snapshot into Redis.
+
+    Everything in here is best-effort. The tick is already durable in Postgres
+    by the time this runs, so a Redis outage -- or any failure building the
+    snapshot -- must not propagate and kill the scheduler. The cache simply
+    goes stale and expires on its TTL.
+    """
+    try:
+        cache.write_prices(serialize_payload(market_payload(session)))
+    except Exception:
+        logger.exception("publishing prices to cache failed; tick already committed")
+
+
 def _run_price_tick(tick_index: int) -> None:
     with SessionLocal() as session:
+        # advance_price_tick commits. Redis is written only after that returns,
+        # never before: a tick that rolled back must never be visible in the
+        # cache, or the market would quote prices Postgres never recorded.
         advance_price_tick(session, tick_index)
+        _publish_prices(session)
 
 
 async def _run() -> None:

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import ticker
+from app import cache, ticker
 from app.routers import (
     athletes,
     auth,
@@ -55,6 +55,13 @@ app.include_router(funds.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics():
+    """Prices-cache hit rate. Counters are per-process, which is accurate at
+    WEB_CONCURRENCY=1; with more workers each reports only its own share."""
+    return cache.metrics()
 
 
 if __name__ == "__main__":
