@@ -60,14 +60,12 @@ SPARK_WINDOW = 12
 # Price rows kept per athlete. Far more than any endpoint reads (the detail
 # chart asks for 60), so pruning is invisible to the UI.
 PRICE_HISTORY_KEEP = 500
-# Seconds between automatic market advances.
-TICK_INTERVAL_SECONDS = 3
-# How long a cached prices snapshot may live without being rewritten. The
-# ticker refreshes the key on every tick, so in normal running the TTL never
-# fires -- it is the backstop for the case where the ticker dies, so a stale
-# snapshot expires instead of being served forever. Eight ticks of slack keeps
-# it from expiring between two normally-spaced ticks.
-PRICE_CACHE_TTL = TICK_INTERVAL_SECONDS * 8
+# How long a cached prices snapshot may live without being rewritten, as a
+# multiple of the scheduler's mean tick spacing (see cache.price_cache_ttl).
+# The ticker rewrites the key every tick, so in normal running this never
+# fires -- it exists so a snapshot expires instead of being served forever
+# once the ticker stops.
+PRICE_CACHE_TTL_MULTIPLIER = 8
 
 
 # --- AI lessons -------------------------------------------------------------

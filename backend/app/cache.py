@@ -13,8 +13,10 @@ import logging
 import os
 
 import redis
+from sqlalchemy import select
 
-from app.config import PRICE_CACHE_TTL
+from app.config import PRICE_CACHE_TTL_MULTIPLIER
+from app.models import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,34 @@ def read_prices() -> bytes | None:
     return body
 
 
-def write_prices(body: bytes) -> None:
+def price_cache_ttl(session) -> int:
+    """How long a snapshot may live unrefreshed, from the scheduler's cadence.
+
+    Read from Settings, the same source the ticker paces itself by, so the TTL
+    tracks the cadence instead of a constant that can disagree with it. Both
+    the ticker's write and the read path's repopulate call this, so the two
+    cannot drift.
+
+    A multiple of the MEAN spacing, not the spacing itself, because tick
+    arrivals are Poisson: the gaps are exponential, so an ordinary one can run
+    several times the mean, and a tight TTL would read that as a dead ticker
+    and expire a perfectly current snapshot.
+    """
+    settings = session.scalar(select(Settings))
+    if settings is None:
+        # no cadence row yet (fresh DB, ticker not started). The model's own
+        # defaults are the values it will be created with, so read them there
+        # rather than restating them here.
+        day_minutes = Settings.day_length_minutes.default.arg
+        ticks = Settings.ticks_per_day.default.arg
+    else:
+        day_minutes, ticks = settings.day_length_minutes, settings.ticks_per_day
+
+    mean_spacing = (day_minutes * 60) / max(1, ticks)
+    return max(1, round(mean_spacing * PRICE_CACHE_TTL_MULTIPLIER))
+
+
+def write_prices(body: bytes, ttl: int) -> None:
     """Publish a snapshot, with the TTL as its backstop.
 
     Swallowed on failure by design. Callers reach here only after Postgres has
@@ -75,7 +104,7 @@ def write_prices(body: bytes) -> None:
     a failed request or a dead ticker.
     """
     try:
-        client.set(PRICES_KEY, body, ex=PRICE_CACHE_TTL)
+        client.set(PRICES_KEY, body, ex=ttl)
     except redis.RedisError:
         logger.warning("prices cache write failed; cache left to expire")
 

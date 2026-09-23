@@ -144,5 +144,5 @@ def prices(session: Session = Depends(get_session)):
     # Miss, or Redis unreachable: Postgres answers and we repopulate. Same
     # bytes either way, so a hit and a miss are indistinguishable to a client.
     body = serialize_payload(market_payload(session))
-    cache.write_prices(body)
+    cache.write_prices(body, cache.price_cache_ttl(session))
     return Response(content=body, media_type="application/json")

@@ -80,7 +80,8 @@ throttling.
 
 ### Notes
 
-- The market advances on its own every `TICK_INTERVAL_SECONDS` (3s) via a
+- The market advances on its own at the cadence in the `settings` table
+  (`day_length_minutes` / `ticks_per_day`, ~60s apart by default) via a
   background task started in the FastAPI lifespan handler. It runs per process,
   so keep the backend at a single instance or the market will tick faster than
   intended.

@@ -76,7 +76,9 @@ def _publish_prices(session) -> None:
     goes stale and expires on its TTL.
     """
     try:
-        cache.write_prices(serialize_payload(market_payload(session)))
+        cache.write_prices(
+            serialize_payload(market_payload(session)), cache.price_cache_ttl(session)
+        )
     except Exception:
         logger.exception("publishing prices to cache failed; tick already committed")
 
