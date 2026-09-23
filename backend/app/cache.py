@@ -70,23 +70,14 @@ def read_prices() -> bytes | None:
 
 
 def price_cache_ttl(session) -> int:
-    """How long a snapshot may live unrefreshed, from the scheduler's cadence.
-
-    Read from Settings, the same source the ticker paces itself by, so the TTL
-    tracks the cadence instead of a constant that can disagree with it. Both
-    the ticker's write and the read path's repopulate call this, so the two
-    cannot drift.
-
-    A multiple of the MEAN spacing, not the spacing itself, because tick
-    arrivals are Poisson: the gaps are exponential, so an ordinary one can run
-    several times the mean, and a tight TTL would read that as a dead ticker
-    and expire a perfectly current snapshot.
+    """Reads the cadence from Settings, the same source the ticker paces itself
+    by, so the TTL tracks it rather than a constant that can disagree. It is a
+    multiple of the MEAN spacing because tick gaps are exponential and a single
+    gap can run well past the mean.
     """
     settings = session.scalar(select(Settings))
     if settings is None:
-        # no cadence row yet (fresh DB, ticker not started). The model's own
-        # defaults are the values it will be created with, so read them there
-        # rather than restating them here.
+        # no cadence row yet: the model's defaults are what it will be created with
         day_minutes = Settings.day_length_minutes.default.arg
         ticks = Settings.ticks_per_day.default.arg
     else:
