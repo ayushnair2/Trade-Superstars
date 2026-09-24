@@ -70,11 +70,17 @@ PRICE_CACHE_TTL_MULTIPLIER = 8
 
 # --- AI lessons -------------------------------------------------------------
 LLM_PROVIDER = "groq"
-# Verified against Groq's live model list. Not a reasoning model, which matters:
-# max_completion_tokens covers reasoning + output, so on gpt-oss a 60-token cap
-# starved the answer (empty 5 of 8 tries). Here the cap limits the tip itself.
-LLM_MODEL = "groq/compound-mini"
-LESSON_MAX_TOKENS = 60
+# Chosen by benchmarking the live model list after groq/compound-mini was
+# retired. Against openai/gpt-oss-20b it holds length better (median 16 words
+# vs 17, both rarely over the 20-word target), and neither model named a player
+# in a global lesson or gave advice; each slipped one soft "expect his value
+# to..." on VOLATILITY, so the guardrails tie. It wins on speed -- ~180ms
+# median against ~350ms -- and needs no reasoning_effort tuning to behave.
+LLM_MODEL = "qwen/qwen3.8-27b"
+# Not 60. max_completion_tokens covers any thinking the model does as well as
+# the reply, and a cap that tight starved the answer entirely on reasoning
+# models. The visible tip is kept short by the prompt, not by this.
+LESSON_MAX_TOKENS = 400
 
 
 # --- NHL scoring -----------------------------------------------------------

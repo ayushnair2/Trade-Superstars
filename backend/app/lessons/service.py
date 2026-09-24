@@ -1,8 +1,9 @@
 """Generate (and cache) a one-off lesson for a trade."""
 
-from sqlalchemy import select
-
+import logging
 import re
+
+from sqlalchemy import select
 
 from app.lessons.concepts import (
     GLOBAL_CONCEPTS,
@@ -10,8 +11,11 @@ from app.lessons.concepts import (
     cache_key,
     pick_concept,
 )
-from app.lessons.provider import get_provider
+from app.lessons.provider import LessonProviderError, get_provider
+from app.config import LLM_MODEL
 from app.models import Athlete, Lesson, Side, Trade
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You write one-line tips for a beginner in a sports-trading game.
 
@@ -132,16 +136,47 @@ def assert_shareable(session, shared: bool, concept: Concept, text: str) -> None
         raise ValueError(f"shared lesson {concept} cites a figure: {text!r}")
 
 
+def fallback_for(concept: Concept) -> str:
+    return FALLBACK_LESSONS.get(concept, GENERIC_FALLBACK)
+
+
+class _Fallback(str):
+    """Marks text that came from the fallback rather than the model, so the
+    caller knows not to cache it -- caching would make a transient outage
+    permanent, and the real lesson would never be generated."""
+
+
+def _safe_generate(provider, system: str, prompt: str, concept: Concept) -> str:
+    """Generate, or return the concept's fallback. Never raises.
+
+    A lesson is a teaching aid, not a transaction: if the model is gone, has
+    timed out or has changed its name again, the mascot should still say
+    something true rather than the user seeing nothing at all.
+    """
+    try:
+        return provider.generate(system, prompt)
+    except Exception as exc:
+        logger.error(
+            "lesson generation failed for %s on model %r: %s",
+            concept,
+            LLM_MODEL,
+            exc,
+        )
+        return _Fallback(fallback_for(concept))
+
+
 def _global_text(session, concept: Concept, side: Side, provider) -> str:
     """Generate a player-agnostic lesson, retrying once, then falling back."""
     prompt = _user_prompt(concept, None, side)
     tokens = athlete_name_tokens(session)
     for _ in range(2):
-        text = provider.generate(SYSTEM_PROMPT, prompt)
+        text = _safe_generate(provider, SYSTEM_PROMPT, prompt, concept)
+        if isinstance(text, _Fallback):
+            return text  # the model is unavailable; retrying will not help
         if not names_a_player(text, tokens) and not cites_a_figure(text):
             return text
     # never cache a shared lesson that names a player or quotes a number
-    return FALLBACK_LESSONS.get(concept, GENERIC_FALLBACK)
+    return _Fallback(fallback_for(concept))
 
 
 def lesson_for_concept(session, concept: Concept) -> dict:
@@ -152,8 +187,16 @@ def lesson_for_concept(session, concept: Concept) -> dict:
     if cached is not None:
         return {"concept": str(concept), "text": cached.text, "cached": True}
 
-    provider = get_provider()
+    try:
+        provider = get_provider()
+    except LessonProviderError as exc:
+        logger.error("no lesson provider on model %r: %s", LLM_MODEL, exc)
+        return {"concept": str(concept), "text": fallback_for(concept), "cached": False}
+
     text = _global_text(session, concept, Side.buy, provider)
+    if isinstance(text, _Fallback):
+        # serve it, but do not cache: the next request should try the model
+        return {"concept": str(concept), "text": str(text), "cached": False}
     assert_shareable(session, True, concept, text)
     session.add(Lesson(cache_key=key, concept=str(concept), text=text))
     session.commit()
@@ -168,7 +211,12 @@ def lesson_for_trade(session, trade: Trade) -> dict:
     if cached is not None:
         return {"concept": str(concept), "text": cached.text, "cached": True}
 
-    provider = get_provider()
+    try:
+        provider = get_provider()
+    except LessonProviderError as exc:
+        logger.error("no lesson provider on model %r: %s", LLM_MODEL, exc)
+        return {"concept": str(concept), "text": fallback_for(concept), "cached": False}
+
     # A fund trade has no athlete, so its lesson is cached under the concept
     # alone and served to everyone -- the same contract as a global concept,
     # and it has to clear the same bar.
@@ -177,9 +225,16 @@ def lesson_for_trade(session, trade: Trade) -> dict:
         text = _global_text(session, concept, trade.side, provider)
     else:
         athlete = session.get(Athlete, trade.athlete_id)
-        text = provider.generate(
-            SYSTEM_PROMPT, _user_prompt(concept, athlete.name, trade.side)
+        text = _safe_generate(
+            provider,
+            SYSTEM_PROMPT,
+            _user_prompt(concept, athlete.name, trade.side),
+            concept,
         )
+
+    if isinstance(text, _Fallback):
+        # serve it, but do not cache: the next request should try the model
+        return {"concept": str(concept), "text": str(text), "cached": False}
 
     assert_shareable(session, shared, concept, text)
     session.add(Lesson(cache_key=key, concept=str(concept), text=text))

@@ -1,3 +1,4 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import cache, ticker
+from app.lessons.provider import check_model
 from app.routers import (
     athletes,
     auth,
@@ -28,6 +30,8 @@ def allowed_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # off the event loop: this is a network call, and it must not delay serving
+    await asyncio.to_thread(check_model)
     ticker.start()
     try:
         yield
