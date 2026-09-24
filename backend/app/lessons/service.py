@@ -44,6 +44,11 @@ SITUATIONS = {
     Concept.VOLATILITY: "bought a player whose game-to-game performance swings a lot",
     Concept.STABILITY: "bought a player whose game-to-game performance is steady",
     Concept.DIVERSIFICATION: "now holds shares in several different players",
+    Concept.BONDS: (
+        "just bought a league bond: a fixed-term holding that pays a set amount "
+        "every game-day and returns the original stake at the end, instead of "
+        "rising and falling with a player's price"
+    ),
 }
 
 
@@ -57,6 +62,10 @@ FALLBACK_LESSONS = {
     Concept.DIVERSIFICATION: (
         "Your roster now leans on several names, so one cold night barely dents "
         "the whole thing."
+    ),
+    Concept.BONDS: (
+        "A bond pays the same every game-day and hands your stake back at the "
+        "end -- steadier than a player, and capped in return for it."
     ),
 }
 
@@ -133,6 +142,22 @@ def _global_text(session, concept: Concept, side: Side, provider) -> str:
             return text
     # never cache a shared lesson that names a player or quotes a number
     return FALLBACK_LESSONS.get(concept, GENERIC_FALLBACK)
+
+
+def lesson_for_concept(session, concept: Concept) -> dict:
+    """Serve a global concept directly, with the same cache and guard as a
+    trade's lesson. Side is irrelevant here, so the prompt takes a buy."""
+    key = cache_key(concept, None)
+    cached = session.scalar(select(Lesson).where(Lesson.cache_key == key))
+    if cached is not None:
+        return {"concept": str(concept), "text": cached.text, "cached": True}
+
+    provider = get_provider()
+    text = _global_text(session, concept, Side.buy, provider)
+    assert_shareable(session, True, concept, text)
+    session.add(Lesson(cache_key=key, concept=str(concept), text=text))
+    session.commit()
+    return {"concept": str(concept), "text": text, "cached": False}
 
 
 def lesson_for_trade(session, trade: Trade) -> dict:

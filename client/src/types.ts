@@ -56,6 +56,7 @@ export type HoldingRow = {
 export type Portfolio = {
   cash: number
   holdings: HoldingRow[]
+  bonds?: { active_principal: number }
   total_value: number
 }
 
@@ -76,4 +77,31 @@ export type LeaderboardBody = {
   total_players: number
   /** present only when the caller is signed in and ranked outside `top` */
   me?: LeaderboardEntry
+}
+
+export type BondTerm = {
+  term_days: number
+  coupon_rate: number
+  face: number
+  total_return_pct: number
+  early_penalty_pct: number
+}
+
+export type BondPosition = {
+  position_id: number
+  term_days: number
+  quantity: number
+  principal: number
+  coupon_rate: number
+  bought_day: number
+  maturity_day: number
+  status: 'active' | 'matured' | 'redeemed'
+  coupons_received: number
+  days_to_maturity: number
+}
+
+export type BondPositions = {
+  current_day: number
+  active_principal: number
+  positions: BondPosition[]
 }

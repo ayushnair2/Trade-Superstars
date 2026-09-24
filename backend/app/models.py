@@ -333,3 +333,69 @@ class FundPrice(Base):
     )
 
     fund: Mapped["Fund"] = relationship()
+
+
+class BondStatus(str, enum.Enum):
+    active = "active"
+    matured = "matured"
+    redeemed = "redeemed"
+
+
+class BondKind(str, enum.Enum):
+    """Every kind of cash movement a bond can cause."""
+
+    buy = "buy"
+    coupon = "coupon"
+    maturity = "maturity"
+    redeem = "redeem"
+
+
+class BondPosition(Base):
+    """One purchase of a league bond, held until maturity or redeemed early.
+
+    Its own table rather than a holding: a bond has a lifecycle -- it accrues,
+    matures and can be redeemed -- where a holding is just a quantity.
+    """
+
+    __tablename__ = "bond_positions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    term_days: Mapped[int] = mapped_column()
+    quantity: Mapped[int] = mapped_column()
+    # copied from BOND_TERMS at purchase, so repricing the terms later never
+    # changes what an existing holder was promised
+    coupon_rate: Mapped[Decimal] = mapped_column(Numeric(8, 6))
+    bought_day: Mapped[int] = mapped_column()
+    maturity_day: Mapped[int] = mapped_column(index=True)
+    status: Mapped[str] = mapped_column(String(10), default=BondStatus.active.value)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class BondTransaction(Base):
+    """Every cash movement a bond causes, so the ledger stays complete."""
+
+    __tablename__ = "bond_transactions"
+    __table_args__ = (
+        # One movement of each kind per position per game-day. This is what
+        # makes game-day processing idempotent: a re-run cannot pay a coupon
+        # twice, because the second insert has nowhere to go.
+        UniqueConstraint(
+            "position_id", "kind", "day", name="uq_bond_txn_position_kind_day"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    position_id: Mapped[int] = mapped_column(
+        ForeignKey("bond_positions.id"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(10))
+    # positive credits the user, negative debits them
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    day: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )

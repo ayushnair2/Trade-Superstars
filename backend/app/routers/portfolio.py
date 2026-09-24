@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.bonds import active_principal
 from app.db import get_session
 from app.models import (
     AssetType,
@@ -289,8 +290,12 @@ def get_portfolio(
         )
 
     holdings.sort(key=lambda h: h["market_value"], reverse=True)
+    # bonds are held at face until they mature or are redeemed, so principal is
+    # what they are worth to the portfolio today
+    bonds = active_principal(session, user.id)
     return {
         "cash": float(portfolio.cash),
         "holdings": holdings,
-        "total_value": float(_money(portfolio.cash + total_market_value)),
+        "bonds": {"active_principal": float(bonds)},
+        "total_value": float(_money(portfolio.cash + total_market_value + bonds)),
     }

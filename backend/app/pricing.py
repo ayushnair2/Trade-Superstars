@@ -298,6 +298,22 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
 
     state.current_day = day + 1
     session.commit()
+
+    # Bonds settle after pricing, on the day that just played. Imported here
+    # rather than at module scope because app.bonds reads Portfolio, which
+    # would close an import cycle back through the routers.
+    from app.bonds import process_game_day
+
+    try:
+        process_game_day(session, day)
+    except Exception:
+        # A bond failure must not cost the market its game-day. Roll back
+        # first: the session is left in a failed transaction otherwise, and
+        # every later query on it would raise. The day's coupons stay unpaid
+        # and the next game-day catches them up.
+        session.rollback()
+        logger.exception("bond settlement failed for day %s", day)
+
     return results
 
 

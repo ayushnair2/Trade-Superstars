@@ -44,8 +44,10 @@ export function useLesson({ enabled, cooldownMs }: Options) {
     }
   }, [enabled])
 
-  const showForTrade = useCallback(
-    (tradeId: number) => {
+  /** One request path for both entry points: same cooldown, same fire-and-
+   *  forget contract, only the endpoint and body differ. */
+  const request = useCallback(
+    (path: string, body: object) => {
       if (!enabled) return
       const now = Date.now()
       if (now - lastShownAt.current < cooldownMs) return
@@ -56,10 +58,10 @@ export function useLesson({ enabled, cooldownMs }: Options) {
 
       // Deliberately not awaited by the caller: a slow or failing lesson must
       // never affect the trade that triggered it.
-      authFetch('/lessons/for-trade', {
+      authFetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trade_id: tradeId }),
+        body: JSON.stringify(body),
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -75,5 +77,16 @@ export function useLesson({ enabled, cooldownMs }: Options) {
     [enabled, cooldownMs],
   )
 
-  return { state, showForTrade, dismiss }
+  const showForTrade = useCallback(
+    (tradeId: number) => request('/lessons/for-trade', { trade_id: tradeId }),
+    [request],
+  )
+
+  /** For something that is not a trade, such as buying a bond. */
+  const showForConcept = useCallback(
+    (concept: string) => request('/lessons/for-concept', { concept }),
+    [request],
+  )
+
+  return { state, showForTrade, showForConcept, dismiss }
 }

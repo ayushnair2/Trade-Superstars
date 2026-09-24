@@ -7,7 +7,16 @@ user alongside their cash.
 
 from sqlalchemy import Numeric, cast, desc, func, select
 
-from app.models import FundPrice, Holding, Portfolio, Price, User
+from app.config import BOND_FACE
+from app.models import (
+    BondPosition,
+    BondStatus,
+    FundPrice,
+    Holding,
+    Portfolio,
+    Price,
+    User,
+)
 
 # Every portfolio opens on this, so it is the denominator for return_pct.
 # Read off the model rather than restated, so the two cannot drift.
@@ -53,16 +62,30 @@ def ranked_rows(session) -> list[dict]:
         .subquery()
     )
 
+    # bonds are held at face while active, the same value the portfolio shows
+    bonds_value = (
+        select(
+            BondPosition.user_id.label("user_id"),
+            func.sum(cast(BondPosition.quantity, Numeric) * BOND_FACE).label("value"),
+        )
+        .where(BondPosition.status == BondStatus.active.value)
+        .group_by(BondPosition.user_id)
+        .subquery()
+    )
+
     # a user who has never opened their portfolio has no row yet, but they do
     # have the starting cash, so they rank rather than vanish
-    total = func.coalesce(Portfolio.cash, STARTING_CASH) + func.coalesce(
-        holdings_value.c.value, 0
+    total = (
+        func.coalesce(Portfolio.cash, STARTING_CASH)
+        + func.coalesce(holdings_value.c.value, 0)
+        + func.coalesce(bonds_value.c.value, 0)
     )
 
     rows = session.execute(
         select(User.id, User.display_name, total.label("total_value"))
         .outerjoin(Portfolio, Portfolio.user_id == User.id)
         .outerjoin(holdings_value, holdings_value.c.user_id == User.id)
+        .outerjoin(bonds_value, bonds_value.c.user_id == User.id)
         .order_by(desc("total_value"), User.id)
     ).all()
 

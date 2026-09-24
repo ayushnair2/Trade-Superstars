@@ -185,3 +185,13 @@ LEADERBOARD_TOP_N = 50
 # many writers as there are traders, so invalidating on every trade would cost
 # more than it saves, and a ranking half a minute stale is fine.
 LEADERBOARD_CACHE_TTL = 30
+
+
+# --- league bonds ----------------------------------------------------------
+# Face value of one bond, in the same dollars as everything else.
+BOND_FACE = 100
+# term in game-days -> coupon rate paid per game-day held. Total return to
+# maturity is therefore term * rate: 0.5%, 3% and 10%.
+BOND_TERMS = {5: 0.0010, 20: 0.0015, 50: 0.0020}
+# Redeeming before maturity returns the principal less this.
+BOND_EARLY_PENALTY = 0.02

@@ -1434,6 +1434,12 @@ body {
 
 .pf-table .num {
   text-align: right;
+  /* not zero: adjacent right-aligned headers would otherwise run together */
+  padding-right: 10px;
+}
+
+.pf-table td:last-child,
+.pf-table th:last-child {
   padding-right: 0;
 }
 
@@ -1949,4 +1955,162 @@ body {
   font-size: 11px;
   color: var(--muted);
   margin: -6px 0 12px;
+}
+
+/* --- bonds --- */
+
+.bonds {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bonds-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.bond-card {
+  background: var(--panel2);
+  border-left: 3px solid var(--amber);
+  padding: 11px 12px;
+}
+
+.bond-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.bond-term {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+}
+
+.bond-total {
+  margin-left: auto;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--up-hi);
+}
+
+.bond-facts {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 11px;
+}
+
+.bond-penalty {
+  color: var(--down-hi);
+}
+
+.bond-buy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.bond-qty-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.bond-qty {
+  width: 72px;
+  margin-bottom: 0;
+}
+
+.bond-cost {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: var(--white);
+}
+
+/* .btn fills a grid cell by default, so a standalone one needs its own sides */
+.bond-btn {
+  margin-left: auto;
+  padding-left: 18px;
+  padding-right: 18px;
+  font-size: 9px;
+}
+
+.bond-error {
+  margin-top: 4px;
+}
+
+.bonds-summary {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 11px;
+}
+
+.bond-status {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  padding: 3px 5px;
+  border: 2px solid var(--line);
+  color: var(--muted);
+}
+
+.bond-status.active {
+  color: var(--bg);
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.bond-status.matured {
+  color: var(--bg);
+  background: var(--up-hi);
+  border-color: var(--up-hi);
+}
+
+.bond-redeem-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 2px solid var(--line);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.bond-redeem-btn:hover {
+  color: var(--white);
+}
+
+/* the penalty is spelled out inline rather than in a modal, so the number is
+   next to the button that charges it */
+.bond-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.bond-confirm-text {
+  font-size: 11px;
+  color: var(--down-hi);
+  white-space: normal;
+  max-width: 260px;
+  text-align: right;
+}
+
+.bond-confirm-yes,
+.bond-confirm-no {
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 8px;
+}
+
+.bond-confirm-no {
+  background: var(--line);
+  color: var(--white);
 }

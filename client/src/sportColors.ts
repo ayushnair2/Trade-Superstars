@@ -20,3 +20,7 @@ export const sportColor = (sport: string) => SPORT_COLORS[sport] ?? 'var(--muted
 /** Funds are not a sport, so they get their own accent -- Sweetie-16's cyan,
  *  which none of the five sports uses. */
 export const FUND_COLOR = '#73eff7'
+
+/** Bonds are not a sport and not a fund, so they get their own accent --
+ *  Sweetie-16's amber, reserved elsewhere for chrome rather than an asset. */
+export const BOND_COLOR = '#ffcd75'

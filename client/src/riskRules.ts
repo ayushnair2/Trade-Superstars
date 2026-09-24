@@ -156,3 +156,26 @@ export function muteWarnings(ids: RiskId[]) {
     // not persisting is survivable; the warning simply shows again
   }
 }
+
+/** Warnings for a bond purchase.
+ *
+ * Only the cash rule applies. The concentration rules ask whether too much
+ * rides on one player or one sport, and a bond is neither -- it is a fixed
+ * claim that does not move with anybody's price.
+ */
+export function evaluateBondBuy(
+  cost: number,
+  portfolio: Portfolio | null,
+): Warning[] {
+  if (!portfolio || cost <= 0 || portfolio.cash <= 0) return []
+  const spend = (cost / portfolio.cash) * 100
+  if (spend <= RISK_THRESHOLDS.cashSpendPct) return []
+  return [
+    {
+      id: 'HIGH_CASH_SPEND',
+      title: 'Over-committing capital',
+      body: 'Spending most of your cash at once leaves nothing to react with or buy dips. Traders usually keep some in reserve.',
+      detail: `This uses ${pct(spend)} of your cash.`,
+    },
+  ]
+}

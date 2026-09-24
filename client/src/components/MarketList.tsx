@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
 
-import { FUND_COLOR, sportColor } from '../sportColors'
-import type { FundRow, PriceRow, Selection } from '../types'
+import { BOND_COLOR, FUND_COLOR, sportColor } from '../sportColors'
+import type { FundRow, Portfolio, PriceRow, Selection } from '../types'
+import BondsPanel from './BondsPanel'
 import FundTag from './FundTag'
 import MarketRow from './MarketRow'
 import SportTag from './SportTag'
 
 const ALL = 'ALL'
 const FUNDS = 'FUNDS'
+const BONDS = 'BONDS'
 // Known sports lead in this order; anything new in the data is appended, so a
 // sixth sport shows up without touching this file.
 const SPORT_ORDER = ['NBA', 'NFL', 'NHL', 'MLB', 'FUT']
@@ -17,9 +19,22 @@ type Props = {
   funds: FundRow[]
   selection: Selection | null
   onSelect: (selection: Selection) => void
+  portfolio: Portfolio | null
+  signedIn: boolean
+  onRequireLogin: () => void
+  onBoughtBond: () => void
 }
 
-export default function MarketList({ rows, funds, selection, onSelect }: Props) {
+export default function MarketList({
+  rows,
+  funds,
+  selection,
+  onSelect,
+  portfolio,
+  signedIn,
+  onRequireLogin,
+  onBoughtBond,
+}: Props) {
   const [filter, setFilter] = useState(ALL)
   const [query, setQuery] = useState('')
 
@@ -27,8 +42,9 @@ export default function MarketList({ rows, funds, selection, onSelect }: Props) 
     const present = new Set(rows.map((row) => row.sport))
     const known = SPORT_ORDER.filter((s) => present.has(s))
     const extra = [...present].filter((s) => !SPORT_ORDER.includes(s)).sort()
-    // funds sit next to ALL, ahead of the sports: they span all of them
-    return [ALL, ...(funds.length ? [FUNDS] : []), ...known, ...extra]
+    // funds and bonds sit next to ALL, ahead of the sports: neither belongs
+    // to one of them
+    return [ALL, ...(funds.length ? [FUNDS] : []), BONDS, ...known, ...extra]
   }, [rows, funds])
 
   const needle = query.trim().toLowerCase()
@@ -62,7 +78,12 @@ export default function MarketList({ rows, funds, selection, onSelect }: Props) 
 
       <div className="market-filters">
         {tabs.map((option) => {
-          const accent = option === FUNDS ? FUND_COLOR : sportColor(option)
+          const accent =
+            option === FUNDS
+              ? FUND_COLOR
+              : option === BONDS
+                ? BOND_COLOR
+                : sportColor(option)
           return (
             <button
               key={option}
@@ -81,6 +102,15 @@ export default function MarketList({ rows, funds, selection, onSelect }: Props) 
         })}
       </div>
 
+      {filter === BONDS ? (
+        <BondsPanel
+          portfolio={portfolio}
+          signedIn={signedIn}
+          onRequireLogin={onRequireLogin}
+          onBought={onBoughtBond}
+        />
+      ) : (
+      <>
       <div className="market-search-row">
         <input
           className="search-input"
@@ -132,6 +162,8 @@ export default function MarketList({ rows, funds, selection, onSelect }: Props) 
           </>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

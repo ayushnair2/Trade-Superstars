@@ -8,6 +8,7 @@ from app import cache, ticker
 from app.routers import (
     athletes,
     auth,
+    bonds,
     funds,
     leaderboard,
     lessons,
@@ -49,6 +50,7 @@ app.add_middleware(
 # the SPA -- which returned HTML with a 200 and looked like a parse bug.
 api = APIRouter(prefix="/api")
 api.include_router(auth.router)
+api.include_router(bonds.router)
 api.include_router(market.router)
 api.include_router(portfolio.router)
 api.include_router(athletes.router)

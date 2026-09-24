@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 
 import { changeClass, money } from '../format'
 import type { HoldingRow, Portfolio, PriceRow } from '../types'
-import { FUND_COLOR } from '../sportColors'
+import { BOND_COLOR, FUND_COLOR } from '../sportColors'
+import BondsTable from './BondsTable'
 import FundTag from './FundTag'
 import PortfolioPie, { type Slice } from './PortfolioPie'
 import SportBreakdown, { type SportSlice } from './SportBreakdown'
@@ -10,6 +11,8 @@ import SportTag from './SportTag'
 
 type Props = {
   portfolio: Portfolio | null
+  /** bonds live outside holdings, so a redeem has to refresh the portfolio */
+  onBondsChanged: () => void
   rows: PriceRow[]
   signedIn: boolean
   onRequireLogin: () => void
@@ -43,6 +46,7 @@ const isFund = (holding: HoldingRow) =>
 
 export default function PortfolioView({
   portfolio,
+  onBondsChanged,
   rows,
   signedIn,
   onRequireLogin,
@@ -57,7 +61,8 @@ export default function PortfolioView({
 
   const stats = useMemo(() => {
     const holdings = portfolio?.holdings ?? []
-    const invested = holdings.reduce((sum, h) => sum + h.market_value, 0)
+    const bonds = portfolio?.bonds?.active_principal ?? 0
+    const invested = holdings.reduce((sum, h) => sum + h.market_value, 0) + bonds
     const costBasis = holdings.reduce((sum, h) => sum + h.quantity * h.avg_cost, 0)
     const totalPl = holdings.reduce((sum, h) => sum + h.unrealized_pl, 0)
     return {
@@ -103,6 +108,12 @@ export default function PortfolioView({
         color: OTHER_COLOR,
       })
     }
+    const bonds = portfolio.bonds?.active_principal ?? 0
+    if (bonds > 0) {
+      // one slice for all bonds: they are a single kind of claim, and their
+      // value does not move with any athlete
+      out.push({ key: 'bonds', label: 'Bonds', value: bonds, color: BOND_COLOR })
+    }
     if (portfolio.cash > 0) {
       out.push({ key: 'cash', label: 'Cash', value: portfolio.cash, color: CASH_COLOR })
     }
@@ -135,7 +146,10 @@ export default function PortfolioView({
     )
   }
 
-  const empty = portfolio.holdings.length === 0
+  // bonds are held outside holdings, so owning only bonds is not empty
+  const empty =
+    portfolio.holdings.length === 0 &&
+    (portfolio.bonds?.active_principal ?? 0) === 0
 
   return (
     <div className="pf">
@@ -174,8 +188,9 @@ export default function PortfolioView({
               <div className="panel-title">BY SPORT</div>
               {sportSlices.length === 0 ? (
                 <div className="pf-sport-empty">
-                  You only hold funds. A fund already spreads across sports, so
-                  there is no single-sport concentration to show.
+                  You hold no players directly. Funds and bonds each sit outside
+                  any one sport, so there is no single-sport concentration to
+                  show.
                 </div>
               ) : (
                 <SportBreakdown
@@ -185,6 +200,8 @@ export default function PortfolioView({
               )}
             </div>
           </div>
+
+          <BondsTable onChanged={onBondsChanged} />
 
           <div className="panel">
             <div className="panel-title">HOLDINGS</div>

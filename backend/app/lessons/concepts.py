@@ -18,10 +18,11 @@ class Concept(StrEnum):
     BUY_LOW = "BUY_LOW"
     WELCOME = "WELCOME"
     DIVERSIFICATION = "DIVERSIFICATION"
+    BONDS = "BONDS"
 
 
 # Concepts about the market in general, not about one athlete.
-GLOBAL_CONCEPTS = {Concept.WELCOME, Concept.DIVERSIFICATION}
+GLOBAL_CONCEPTS = {Concept.WELCOME, Concept.DIVERSIFICATION, Concept.BONDS}
 
 # How many recent prices count as "lately" when judging a buy.
 RECENT_PRICE_WINDOW = 12

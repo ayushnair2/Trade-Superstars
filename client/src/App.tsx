@@ -53,7 +53,12 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false)
   const auth = useAuth()
   const settings = useSettings()
-  const { state: lessonState, showForTrade, dismiss: dismissLesson } = useLesson({
+  const {
+    state: lessonState,
+    showForTrade,
+    showForConcept,
+    dismiss: dismissLesson,
+  } = useLesson({
     enabled: settings.lessonsEnabled,
     cooldownMs: settings.lessonCooldownMs,
   })
@@ -63,6 +68,12 @@ export default function App() {
     if (res.ok) setPortfolio(await res.json())
     else if (res.status === 401) setPortfolio(null)
   }, [])
+
+  const handleBoughtBond = useCallback(() => {
+    loadPortfolio()
+    // not a trade, so there is no trade id to hang a lesson on
+    showForConcept('BONDS')
+  }, [loadPortfolio, showForConcept])
 
   const handleTraded = useCallback(
     (tradeId: number) => {
@@ -205,6 +216,10 @@ export default function App() {
             funds={market.funds ?? []}
             selection={selection}
             onSelect={setSelection}
+            portfolio={portfolio}
+            signedIn={signedIn}
+            onRequireLogin={() => setAuthOpen(true)}
+            onBoughtBond={handleBoughtBond}
           />
           <TradePanel
             selection={selection}
@@ -241,6 +256,7 @@ export default function App() {
       ) : (
         <PortfolioView
           portfolio={portfolio}
+          onBondsChanged={loadPortfolio}
           rows={market.prices}
           signedIn={signedIn}
           onRequireLogin={() => setAuthOpen(true)}
