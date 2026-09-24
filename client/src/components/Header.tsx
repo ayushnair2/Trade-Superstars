@@ -1,7 +1,7 @@
 import { money } from '../format'
 import type { Portfolio } from '../types'
 
-export type Tab = 'market' | 'heatmap' | 'portfolio'
+export type Tab = 'market' | 'heatmap' | 'portfolio' | 'leaderboard'
 
 type Props = {
   tab: Tab
@@ -44,6 +44,13 @@ export default function Header({
             HEATMAP
           </button>
           <button
+            className={`view-tab${tab === 'leaderboard' ? ' on' : ''}`}
+            aria-current={tab === 'leaderboard'}
+            onClick={() => onTab('leaderboard')}
+          >
+            RANKS
+          </button>
+          <button
             className={`view-tab${tab === 'portfolio' ? ' on' : ''}`}
             aria-current={tab === 'portfolio'}
             onClick={() => onTab('portfolio')}
@@ -66,7 +73,7 @@ export default function Header({
         </div>
         {user ? (
           <div className="account">
-            <div className="status-label">{user.email}</div>
+            <div className="status-label">{user.display_name ?? user.email}</div>
             <button className="account-btn" onClick={onLogout}>
               LOG OUT
             </button>

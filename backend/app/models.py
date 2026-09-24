@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
+    Index,
     Date,
     DateTime,
     Enum,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -257,10 +259,24 @@ class User(Base):
     """A player account. Only the bcrypt hash is stored, never the password."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            "display_name ~ '^[A-Za-z0-9_-]{3,20}$'", name="ck_user_display_name"
+        ),
+        # unique on the lowercased value, so two people cannot take the same
+        # name in different cases
+        Index(
+            "uq_users_display_name_lower",
+            text("lower(display_name)"),
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # stored lowercased so lookups are case-insensitive
     email: Mapped[str] = mapped_column(String(255), unique=True)
+    # the only user-identifying field the leaderboard may show
+    display_name: Mapped[str] = mapped_column(String(20))
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

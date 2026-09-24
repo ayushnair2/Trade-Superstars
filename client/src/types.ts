@@ -63,3 +63,17 @@ export type HistoryPoint = {
   recorded_at: string
   price: number
 }
+
+export type LeaderboardEntry = {
+  rank: number
+  display_name: string
+  total_value: number
+  return_pct: number
+}
+
+export type LeaderboardBody = {
+  top: LeaderboardEntry[]
+  total_players: number
+  /** present only when the caller is signed in and ranked outside `top` */
+  me?: LeaderboardEntry
+}

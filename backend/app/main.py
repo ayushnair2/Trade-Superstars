@@ -9,6 +9,7 @@ from app.routers import (
     athletes,
     auth,
     funds,
+    leaderboard,
     lessons,
     market,
     portfolio,
@@ -50,6 +51,7 @@ app.include_router(athletes.router)
 app.include_router(lessons.router)
 app.include_router(settings.router)
 app.include_router(funds.router)
+app.include_router(leaderboard.router)
 
 
 @app.get("/health")

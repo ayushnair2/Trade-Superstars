@@ -168,3 +168,20 @@ FUND_WEIGHT = 1.0 / FUND_SIZE
 # At ten, a player must have a real record before a fund calls them consistent
 # -- which currently excludes football from CONSISTENCY, honestly so.
 FUND_MIN_GAMES = 10
+
+
+# --- display names ---------------------------------------------------------
+DISPLAY_NAME_MIN = 3
+DISPLAY_NAME_MAX = 20
+DISPLAY_NAME_PATTERN = r"^[A-Za-z0-9_-]+$"
+# Auto-assigned names take this shape. A signup may not claim one, so the
+# generated name for a new id is always free.
+DISPLAY_NAME_RESERVED = r"^trader-\d+$"
+
+
+# --- leaderboard -----------------------------------------------------------
+LEADERBOARD_TOP_N = 50
+# Cache-aside, not write-through like the prices key: the leaderboard has as
+# many writers as there are traders, so invalidating on every trade would cost
+# more than it saves, and a ranking half a minute stale is fine.
+LEADERBOARD_CACHE_TTL = 30

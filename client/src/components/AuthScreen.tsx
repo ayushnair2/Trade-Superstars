@@ -12,6 +12,7 @@ export default function AuthScreen({ auth, onClose, onSuccess }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -21,7 +22,7 @@ export default function AuthScreen({ auth, onClose, onSuccess }: Props) {
     event.preventDefault()
     setBusy(true)
     const message = await (signingUp
-      ? auth.signup(email, password)
+      ? auth.signup(email, password, displayName)
       : auth.login(email, password))
     setBusy(false)
     if (message) {
@@ -73,6 +74,26 @@ export default function AuthScreen({ auth, onClose, onSuccess }: Props) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+
+        {signingUp && (
+          <>
+            <label className="auth-label" htmlFor="auth-display-name">
+              DISPLAY NAME <span className="auth-optional">(optional)</span>
+            </label>
+            <input
+              id="auth-display-name"
+              className="auth-input"
+              type="text"
+              autoComplete="nickname"
+              placeholder="leave blank for trader-###"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+            <div className="auth-hint">
+              3-20 characters: letters, digits, _ or -
+            </div>
+          </>
+        )}
 
         <button className="btn buy auth-submit" type="submit" disabled={busy}>
           {signingUp ? 'CREATE ACCOUNT' : 'LOG IN'}

@@ -1765,3 +1765,188 @@ body {
     height: auto;
   }
 }
+
+/* --- leaderboard --- */
+
+.lb-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 110px);
+}
+
+.lb-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.lb-head .panel-title {
+  margin-bottom: 0;
+}
+
+.lb-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.lb-me-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--panel2);
+  border-left: 3px solid var(--cyan);
+  padding: 9px 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.lb-me-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.lb-me-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--cyan-hi);
+}
+
+.lb-rename-btn {
+  margin-left: auto;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 2px solid var(--line);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.lb-rename-btn:hover {
+  color: var(--white);
+}
+
+.lb-rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.lb-rename-input {
+  flex: 1 1 160px;
+  margin-bottom: 0;
+}
+
+/* .btn has no side padding: it is built to fill a grid cell, these stand alone */
+.lb-rename-save,
+.lb-rename-cancel {
+  padding-left: 14px;
+  padding-right: 14px;
+  font-size: 9px;
+}
+
+.lb-rename-cancel {
+  background: var(--line);
+  color: var(--white);
+}
+
+.lb-error {
+  margin-bottom: 12px;
+}
+
+/* the table keeps its columns and scrolls inside the panel */
+.lb-scroll {
+  overflow: auto;
+  min-height: 0;
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.lb-table th {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  text-align: left;
+  font-weight: normal;
+  padding: 0 10px 9px 0;
+  border-bottom: 2px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}
+
+.lb-table td {
+  padding: 9px 10px 9px 0;
+  border-bottom: 2px solid var(--panel2);
+  color: var(--white);
+}
+
+.lb-table .num,
+.lb-table th.num {
+  text-align: right;
+  padding-right: 0;
+}
+
+.lb-rank {
+  width: 48px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+/* the podium: amber for first, quieter metals below it */
+.lb-row.gold .lb-rank {
+  color: var(--amber);
+}
+
+.lb-row.silver .lb-rank {
+  color: var(--white);
+}
+
+.lb-row.bronze .lb-rank {
+  color: var(--down-hi);
+}
+
+.lb-row.mine td {
+  background: var(--panel2);
+}
+
+.lb-row.mine .lb-name {
+  color: var(--cyan-hi);
+}
+
+.lb-you {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: var(--bg);
+  background: var(--cyan);
+  padding: 3px 5px;
+  margin-left: 8px;
+}
+
+.lb-divider td {
+  text-align: center;
+  color: var(--line);
+  letter-spacing: 4px;
+  padding: 6px 0;
+  border-bottom: none;
+}
+
+.auth-optional {
+  color: var(--muted);
+}
+
+.auth-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin: -6px 0 12px;
+}

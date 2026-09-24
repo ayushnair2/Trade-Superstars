@@ -2,14 +2,20 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { authFetch, setToken } from './api'
 
-export type AuthUser = { id?: number; email: string }
+export type AuthUser = { id?: number; email: string; display_name?: string }
 
 export type Auth = {
   user: AuthUser | null
   /** true until the stored token has been checked, so the UI can hold off */
   checking: boolean
   login: (email: string, password: string) => Promise<string | null>
-  signup: (email: string, password: string) => Promise<string | null>
+  signup: (
+    email: string,
+    password: string,
+    displayName?: string,
+  ) => Promise<string | null>
+  /** null on success, otherwise the message to show inline */
+  rename: (displayName: string) => Promise<string | null>
   logout: () => void
 }
 
@@ -45,17 +51,20 @@ export function useAuth(): Auth {
   }, [])
 
   const submit = useCallback(
-    async (path: string, email: string, password: string) => {
+    async (path: string, email: string, password: string, displayName?: string) => {
       try {
+        const body: Record<string, string> = { email, password }
+        // omitted rather than sent empty: the backend assigns trader-<id>
+        if (displayName?.trim()) body.display_name = displayName.trim()
         const res = await authFetch(path, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(body),
         })
         if (!res.ok) return await errorFrom(res)
         const data = await res.json()
         setToken(data.access_token)
-        setUser({ email: data.email })
+        setUser({ email: data.email, display_name: data.display_name })
         return null
       } catch {
         return 'could not reach the server'
@@ -64,11 +73,30 @@ export function useAuth(): Auth {
     [],
   )
 
+  const rename = useCallback(async (displayName: string) => {
+    try {
+      const res = await authFetch('/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: displayName.trim() }),
+      })
+      if (!res.ok) return await errorFrom(res)
+      setUser(await res.json())
+      return null
+    } catch {
+      return 'could not reach the server'
+    }
+  }, [])
+
   return {
     user,
     checking,
     login: useCallback((e, p) => submit('/auth/login', e, p), [submit]),
-    signup: useCallback((e, p) => submit('/auth/signup', e, p), [submit]),
+    signup: useCallback(
+      (e, p, d) => submit('/auth/signup', e, p, d),
+      [submit],
+    ),
+    rename,
     logout: useCallback(() => {
       setToken(null)
       setUser(null)

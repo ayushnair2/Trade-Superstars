@@ -14,6 +14,7 @@ const API_ROOTS = [
   'lessons',
   'settings',
   'funds',
+  'leaderboard',
 ]
 const API_PATTERN = `^/(${API_ROOTS.join('|')})(/|$)`
 

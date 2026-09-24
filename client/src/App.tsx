@@ -8,6 +8,7 @@ import LessonBox from './components/LessonBox'
 import Mascot from './components/Mascot'
 import SettingsPanel from './components/SettingsPanel'
 import Heatmap from './components/Heatmap'
+import Leaderboard from './components/Leaderboard'
 import MarketList from './components/MarketList'
 import PortfolioView from './components/PortfolioView'
 import TradePanel from './components/TradePanel'
@@ -235,6 +236,8 @@ export default function App() {
             setTab('market')
           }}
         />
+      ) : tab === 'leaderboard' ? (
+        <Leaderboard auth={auth} />
       ) : (
         <PortfolioView
           portfolio={portfolio}
@@ -246,7 +249,7 @@ export default function App() {
       )}
       {/* the heatmap owns the viewport, and this panel below it is what
           would push the page past the fold */}
-      {tab !== 'heatmap' && <LessonBox />}
+      {tab !== 'heatmap' && tab !== 'leaderboard' && <LessonBox />}
       <Mascot state={lessonState} onDismiss={dismissLesson} />
       {settingsOpen && (
         <SettingsPanel settings={settings} onClose={() => setSettingsOpen(false)} />

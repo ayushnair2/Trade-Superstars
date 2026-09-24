@@ -9,13 +9,14 @@ dependency. Every call here is wrapped, so with Redis stopped the app keeps
 answering from Postgres and simply counts every read as a miss.
 """
 
+import json
 import logging
 import os
 
 import redis
 from sqlalchemy import select
 
-from app.config import PRICE_CACHE_TTL_MULTIPLIER
+from app.config import LEADERBOARD_CACHE_TTL, PRICE_CACHE_TTL_MULTIPLIER
 from app.models import Settings
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,11 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 # snapshot is the unit that is actually produced and consumed. Per-athlete keys
 # would turn one round trip into N and could serve a torn mix of two ticks.
 PRICES_KEY = "market:prices"
+
+# Cache-aside, not write-through like the prices key: the leaderboard has as
+# many writers as there are traders, so invalidating on every trade or tick
+# would cost more than it saves and a ranking half a minute stale is fine.
+LEADERBOARD_KEY = "leaderboard:ranking"
 
 # One client per process, created at import. redis-py's client is a connection
 # pool, so this is shared by every request rather than dialled per call.
@@ -45,6 +51,8 @@ client = redis.Redis.from_url(
 # every request. With more workers each would report only its own share.
 hits = 0
 misses = 0
+leaderboard_hits = 0
+leaderboard_misses = 0
 
 
 def read_prices() -> bytes | None:
@@ -100,10 +108,63 @@ def write_prices(body: bytes, ttl: int) -> None:
         logger.warning("prices cache write failed; cache left to expire")
 
 
+def read_leaderboard() -> list | None:
+    """The cached ranking, or None if absent or Redis is unreachable."""
+    global leaderboard_hits, leaderboard_misses
+    try:
+        body = client.get(LEADERBOARD_KEY)
+    except redis.RedisError:
+        logger.warning("leaderboard cache read failed; computing from Postgres")
+        leaderboard_misses += 1
+        return None
+
+    if body is None:
+        leaderboard_misses += 1
+        return None
+    try:
+        rows = json.loads(body)
+    except ValueError:
+        # unreadable value is a miss, not a crash
+        leaderboard_misses += 1
+        return None
+    leaderboard_hits += 1
+    return rows
+
+
+def write_leaderboard(rows: list) -> None:
+    """Publish a ranking. Swallowed on failure -- the caller already has the
+    freshly computed answer to serve."""
+    try:
+        client.set(LEADERBOARD_KEY, json.dumps(rows), ex=LEADERBOARD_CACHE_TTL)
+    except redis.RedisError:
+        logger.warning("leaderboard cache write failed; left to recompute")
+
+
+def clear_leaderboard() -> None:
+    """Drop the cached ranking so the next read recomputes.
+
+    The only invalidation the leaderboard has: a rename must show at once,
+    where a trade can wait for the TTL.
+    """
+    try:
+        client.delete(LEADERBOARD_KEY)
+    except redis.RedisError:
+        logger.warning("leaderboard cache clear failed; stale until its TTL")
+
+
+def _rate(h: int, m: int) -> float:
+    total = h + m
+    return round(h / total, 4) if total else 0.0
+
+
 def metrics() -> dict:
-    total = hits + misses
+    """Per-process counters, kept separate per cache: the two have different
+    strategies and one hit rate would hide both."""
     return {
-        "hits": hits,
-        "misses": misses,
-        "hit_rate": round(hits / total, 4) if total else 0.0,
+        "prices": {"hits": hits, "misses": misses, "hit_rate": _rate(hits, misses)},
+        "leaderboard": {
+            "hits": leaderboard_hits,
+            "misses": leaderboard_misses,
+            "hit_rate": _rate(leaderboard_hits, leaderboard_misses),
+        },
     }
