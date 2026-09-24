@@ -35,11 +35,22 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
-def _get_portfolio(session: Session, user: User) -> Portfolio:
-    """This user's portfolio, opened with the starting cash on first access."""
-    portfolio = session.scalar(
-        select(Portfolio).where(Portfolio.user_id == user.id)
-    )
+def _get_portfolio(
+    session: Session, user: User, *, for_update: bool = False
+) -> Portfolio:
+    """This user's portfolio, opened with the starting cash on first access.
+
+    for_update takes a row lock, held until the transaction commits. A trade
+    must take it before reading cash or holdings: sync endpoints run in a
+    threadpool, so without it two of this user's trades can read the same
+    balance, both pass their guard, and both write -- the second silently
+    overwriting the first. The lock is on this user's row alone, so other
+    users' trades are never blocked by it.
+    """
+    query = select(Portfolio).where(Portfolio.user_id == user.id)
+    if for_update:
+        query = query.with_for_update()
+    portfolio = session.scalar(query)
     if portfolio is None:
         # unlocked read-then-insert: two simultaneous first requests from the
         # same user would race, and unique(user_id) fails the loser with a 500
@@ -140,7 +151,8 @@ def buy(
 ):
     asset = _require_asset(session, athlete_id, fund_id)
     price = asset.price
-    portfolio = _get_portfolio(session, user)
+    # locked before the cash is read, so the check below cannot go stale
+    portfolio = _get_portfolio(session, user, for_update=True)
     cost = _money(price * quantity)
 
     if cost > portfolio.cash:
@@ -197,7 +209,8 @@ def sell(
 ):
     asset = _require_asset(session, athlete_id, fund_id)
     price = asset.price
-    portfolio = _get_portfolio(session, user)
+    # locked before the holding is read, so the shares check cannot go stale
+    portfolio = _get_portfolio(session, user, for_update=True)
 
     # _get_holding is user-scoped, so another user's position in this asset
     # reads as nothing to sell rather than as something sellable
