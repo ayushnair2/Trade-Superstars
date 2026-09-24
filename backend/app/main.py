@@ -1,7 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import cache, ticker
@@ -44,16 +44,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(market.router)
-app.include_router(portfolio.router)
-app.include_router(athletes.router)
-app.include_router(lessons.router)
-app.include_router(settings.router)
-app.include_router(funds.router)
-app.include_router(leaderboard.router)
+# Every API route lives under one prefix, so the dev proxy needs a single rule
+# and a new router can never be forgotten there and silently fall through to
+# the SPA -- which returned HTML with a 200 and looked like a parse bug.
+api = APIRouter(prefix="/api")
+api.include_router(auth.router)
+api.include_router(market.router)
+api.include_router(portfolio.router)
+api.include_router(athletes.router)
+api.include_router(lessons.router)
+api.include_router(settings.router)
+api.include_router(funds.router)
+api.include_router(leaderboard.router)
+app.include_router(api)
 
 
+# Health and metrics stay at the root: they are operational endpoints, not the
+# app's API. Render's health check points at /health, and a metrics scraper
+# expects a fixed path that does not move with the API.
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -61,7 +69,7 @@ def health():
 
 @app.get("/metrics")
 def metrics():
-    """Prices-cache hit rate. Counters are per-process, which is accurate at
+    """Cache hit rates. Counters are per-process, which is accurate at
     WEB_CONCURRENCY=1; with more workers each reports only its own share."""
     return cache.metrics()
 

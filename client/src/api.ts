@@ -1,9 +1,12 @@
 // Empty in dev so requests stay relative and the Vite proxy handles them; set
-// to the deployed backend URL in production (see client/.env.example).
+// to the deployed backend ORIGIN in production, with no path -- the /api
+// prefix below is the app's, not the deployment's (see client/.env.example).
 const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 const TOKEN_KEY = 'ts.token'
 
-export const api = (path: string) => `${BASE}${path}`
+/** Every backend route is mounted under /api, so callers pass the bare path
+ *  ('/market/prices') and the prefix is added in exactly one place. */
+export const api = (path: string) => `${BASE}/api${path}`
 
 // localStorage throws in some contexts (private mode, blocked site data), so
 // every access is guarded.
