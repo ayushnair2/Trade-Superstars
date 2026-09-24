@@ -7,6 +7,7 @@ import Landing from './components/Landing'
 import LessonBox from './components/LessonBox'
 import Mascot from './components/Mascot'
 import SettingsPanel from './components/SettingsPanel'
+import Heatmap from './components/Heatmap'
 import MarketList from './components/MarketList'
 import PortfolioView from './components/PortfolioView'
 import TradePanel from './components/TradePanel'
@@ -223,6 +224,17 @@ export default function App() {
             onTraded={handleTraded}
           />
         </div>
+      ) : tab === 'heatmap' ? (
+        <Heatmap
+          rows={market.prices}
+          funds={market.funds ?? []}
+          // a block is a shortcut into the trade panel, so selecting one has
+          // to switch views as well as set the selection
+          onSelect={(next) => {
+            setSelection(next)
+            setTab('market')
+          }}
+        />
       ) : (
         <PortfolioView
           portfolio={portfolio}
@@ -232,7 +244,9 @@ export default function App() {
           onGoToMarket={() => setTab('market')}
         />
       )}
-      <LessonBox />
+      {/* the heatmap owns the viewport, and this panel below it is what
+          would push the page past the fold */}
+      {tab !== 'heatmap' && <LessonBox />}
       <Mascot state={lessonState} onDismiss={dismissLesson} />
       {settingsOpen && (
         <SettingsPanel settings={settings} onClose={() => setSettingsOpen(false)} />

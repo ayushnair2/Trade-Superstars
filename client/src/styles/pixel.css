@@ -1508,6 +1508,18 @@ body {
     align-items: flex-start;
     gap: 10px;
   }
+
+  /* A third view tab pushes the tab row into the account button at this
+     width, so the stats drop to their own line instead of sharing one. */
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header-stats {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 /* --- fund basket (trade panel) --- */
@@ -1579,4 +1591,177 @@ body {
   font-size: 12px;
   line-height: 1.6;
   color: var(--muted);
+}
+
+/* --- heatmap --- */
+
+.heat-panel {
+  /* fills the space under the header so the page itself never scrolls */
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 110px);
+  padding: 12px;
+}
+
+.heat-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.heat-top .panel-title {
+  margin-bottom: 0;
+}
+
+.heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.heat-key {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.heat-swatch {
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--bg);
+}
+
+.heat-box {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* narrow screens stack the groups, so this is the one place it may scroll */
+.heat-box.stacked {
+  overflow-y: auto;
+}
+
+.heat-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.heat-box.stacked .heat-canvas {
+  position: relative;
+  inset: auto;
+}
+
+.heat-group {
+  position: absolute;
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.heat-group-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 4px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.heat-cell {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* a label must never spill past its own rectangle */
+  overflow: hidden;
+  line-height: 1.15;
+  color: var(--white);
+  cursor: pointer;
+  /* the gutter is the dark page showing through, not a border */
+  outline: 1px solid var(--bg);
+  outline-offset: -1px;
+}
+
+.heat-cell:hover {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.heat-name {
+  font-size: 11px;
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* every label is clamped, not just the name: change_pct can run to four
+   digits on a thin market, and it must still stay inside its block */
+.heat-name,
+.heat-price,
+.heat-change {
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.heat-price {
+  font-size: 10px;
+  color: var(--white);
+  opacity: 0.85;
+}
+
+.heat-change {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.heat-name.sm {
+  font-size: 9px;
+}
+
+.heat-change.sm {
+  font-size: 8px;
+}
+
+.heat-tip {
+  position: fixed;
+  z-index: 40;
+  background: var(--panel);
+  border: 2px solid var(--amber);
+  box-shadow: 4px 4px 0 #000;
+  padding: 7px 9px;
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.heat-tip-name {
+  color: var(--white);
+  margin-bottom: 5px;
+  white-space: nowrap;
+}
+
+.heat-tip-row {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .heat-panel {
+    height: auto;
+  }
 }

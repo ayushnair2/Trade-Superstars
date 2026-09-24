@@ -1,7 +1,7 @@
 import { money } from '../format'
 import type { Portfolio } from '../types'
 
-export type Tab = 'market' | 'portfolio'
+export type Tab = 'market' | 'heatmap' | 'portfolio'
 
 type Props = {
   tab: Tab
@@ -35,6 +35,13 @@ export default function Header({
             onClick={() => onTab('market')}
           >
             MARKET
+          </button>
+          <button
+            className={`view-tab${tab === 'heatmap' ? ' on' : ''}`}
+            aria-current={tab === 'heatmap'}
+            onClick={() => onTab('heatmap')}
+          >
+            HEATMAP
           </button>
           <button
             className={`view-tab${tab === 'portfolio' ? ' on' : ''}`}
