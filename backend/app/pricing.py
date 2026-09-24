@@ -10,7 +10,9 @@ seed reproduces a run exactly and any past step can be re-derived without
 replaying the ones before it.
 """
 
+import logging
 import random
+import statistics
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -40,6 +42,9 @@ from app.models import (
     MarketState,
     Price,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _rng(seed: int, athlete_id: int, step: int, purpose: str) -> random.Random:
@@ -101,10 +106,48 @@ class AthleteStream:
         return sum(window) / len(window)
 
 
+def effective_std(perf_std: float, sport: str, typical: dict[str, float]) -> float:
+    """An athlete's own volatility, or the sport's typical one when they have
+    none worth simulating -- a perf_std below MIN_STD freezes their form."""
+    if perf_std >= MIN_STD:
+        return perf_std
+    return max(typical.get(sport, MIN_STD), MIN_STD)
+
+
+def _typical_std_by_sport(session, loaded) -> dict[str, float]:
+    """Each sport's median volatility, computed once per load -- median so one
+    outlier cannot set the stand-in for everyone."""
+    eligible: dict[str, list[float]] = {}
+    for athlete, stats, _ in loaded:
+        std = stats.get("perf_std", 0.0)
+        if std >= MIN_STD:
+            eligible.setdefault(athlete.sport, []).append(std)
+
+    norms = get_sport_norms(session)
+    typical = {}
+    for sport in {athlete.sport for athlete, _, _ in loaded}:
+        values = eligible.get(sport)
+        if values:
+            typical[sport] = statistics.median(values)
+            continue
+        # nobody in this sport has a usable spread; the between-athlete spread
+        # is the only volatility figure left to fall back on
+        norm = norms.get(sport)
+        typical[sport] = max(float(norm.std_perf) if norm else MIN_STD, MIN_STD)
+        logger.warning(
+            "no %s athlete has a perf_std above %.2f; standing in the sport "
+            "norm spread %.3f",
+            sport,
+            MIN_STD,
+            typical[sport],
+        )
+    return typical
+
+
 def load_streams(session) -> list[tuple[Athlete, AthleteStream]]:
     """Every tradeable athlete's perf stream. Retired athletes are excluded, so
     they get no new targets and no new price rows."""
-    streams = []
+    loaded = []
     for athlete in session.scalars(
         select(Athlete).where(Athlete.retired_at.is_(None)).order_by(Athlete.id)
     ).all():
@@ -122,13 +165,22 @@ def load_streams(session) -> list[tuple[Athlete, AthleteStream]]:
                 .order_by(GameLog.game_index)
             ).all()
         ]
+        loaded.append((athlete, stats, games))
+
+    typical = _typical_std_by_sport(session, loaded)
+
+    streams = []
+    for athlete, stats, games in loaded:
+        # one figure for both the simulated draw and the form gap, so the two
+        # can never disagree about how volatile this athlete is
+        std = effective_std(stats.get("perf_std", 0.0), athlete.sport, typical)
         streams.append(
             (
                 athlete,
                 AthleteStream(
                     athlete.id,
                     stats.get("perf_mean", 0.0),
-                    stats.get("perf_std", 0.0),
+                    std,
                     games,
                     stats,
                 ),
@@ -213,7 +265,7 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
         # the gap by the sport's spread mixed the two, and in sports where
         # athletes cluster tightly it turned an ordinary slump into a double
         # digit z-score and a negative target.
-        gap_z = (stream.form_at(seed, day) - stream.mean) / max(stream.std, MIN_STD)
+        gap_z = (stream.form_at(seed, day) - stream.mean) / stream.std
 
         jitter = _rng(seed, athlete.id, day, "reaction").uniform(
             -REACTION_JITTER, REACTION_JITTER
