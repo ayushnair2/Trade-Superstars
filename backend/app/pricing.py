@@ -31,7 +31,7 @@ from app.config import (
     TICK_JITTER,
 )
 from app.funds import price_funds
-from app.norms import baseline_price, get_sport_norms
+from app.norms import MIN_STD, baseline_price, get_sport_norms
 from app.models import (
     Athlete,
     AthleteStat,
@@ -207,9 +207,13 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
             continue
 
         baseline = baseline_price(stream.anchor(norm), norm)
-        # form_at averages the last FORM_WINDOW game-days of the stream, and the
-        # gap is expressed in standard deviations so it is sport-independent
-        gap_z = (stream.form_at(seed, day) - stream.mean) / float(norm.std_perf)
+        # Two different questions, two different spreads: the baseline ranks an
+        # athlete against their peers (the sport's spread), while the form gap
+        # measures deviation from their own normal (their own spread). Dividing
+        # the gap by the sport's spread mixed the two, and in sports where
+        # athletes cluster tightly it turned an ordinary slump into a double
+        # digit z-score and a negative target.
+        gap_z = (stream.form_at(seed, day) - stream.mean) / max(stream.std, MIN_STD)
 
         jitter = _rng(seed, athlete.id, day, "reaction").uniform(
             -REACTION_JITTER, REACTION_JITTER
