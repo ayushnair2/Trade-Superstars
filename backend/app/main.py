@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -15,11 +16,21 @@ from app.routers import (
     leaderboard,
     lessons,
     market,
+    orders,
     portfolio,
     settings,
 )
 
 DEFAULT_ORIGINS = "http://localhost:5173"
+
+
+# One place where the app's own logs get a handler. Without it the module
+# loggers below fall through to Python's last-resort handler, which drops
+# anything under WARNING -- every INFO line in the app was invisible.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 
 def allowed_origins() -> list[str]:
@@ -57,6 +68,7 @@ api.include_router(auth.router)
 api.include_router(bonds.router)
 api.include_router(market.router)
 api.include_router(portfolio.router)
+api.include_router(orders.router)
 api.include_router(athletes.router)
 api.include_router(lessons.router)
 api.include_router(settings.router)

@@ -1,11 +1,11 @@
 """Trading and portfolio endpoints.
 
 Trades execute at the current market price and do not move it -- the pricing
-engine is the only thing that changes prices.
+engine is the only thing that changes prices. The trade itself is made by
+app.trading, which the order engine uses too.
 """
 
-from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -14,126 +14,31 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.bonds import active_principal
 from app.db import get_session
-from app.models import (
-    AssetType,
-    Athlete,
-    Fund,
-    FundPrice,
-    Holding,
-    Portfolio,
-    Price,
-    Side,
-    Trade,
-    User,
+from app.models import Athlete, Fund, Holding, Side, User
+from app.trading import (
+    Asset,
+    TradeError,
+    available_cash,
+    execute_trade,
+    get_holding,
+    get_portfolio,
+    latest_fund_price,
+    latest_price,
+    money,
+    resolve_asset,
 )
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
-CENTS = Decimal("0.01")
-
-
-def _money(value: Decimal) -> Decimal:
-    return value.quantize(CENTS, rounding=ROUND_HALF_UP)
-
-
-def _get_portfolio(
-    session: Session, user: User, *, for_update: bool = False
-) -> Portfolio:
-    """This user's portfolio, opened with the starting cash on first access.
-
-    for_update takes a row lock, held until the transaction commits. A trade
-    must take it before reading cash or holdings: sync endpoints run in a
-    threadpool, so without it two of this user's trades can read the same
-    balance, both pass their guard, and both write -- the second silently
-    overwriting the first. The lock is on this user's row alone, so other
-    users' trades are never blocked by it.
-    """
-    query = select(Portfolio).where(Portfolio.user_id == user.id)
-    if for_update:
-        query = query.with_for_update()
-    portfolio = session.scalar(query)
-    if portfolio is None:
-        # unlocked read-then-insert: two simultaneous first requests from the
-        # same user would race, and unique(user_id) fails the loser with a 500
-        # rather than creating a second portfolio. Acceptable at this scale.
-        portfolio = Portfolio(user_id=user.id)
-        session.add(portfolio)
-        session.flush()
-    return portfolio
-
-
-def _get_holding(session: Session, user: User, asset: "Asset") -> Holding | None:
-    """This user's position in one asset. Always filtered by user_id: the
-    asset columns alone would match every user's row for it."""
-    query = select(Holding).where(Holding.user_id == user.id)
-    if asset.is_fund:
-        query = query.where(Holding.fund_id == asset.fund_id)
-    else:
-        query = query.where(Holding.athlete_id == asset.athlete_id)
-    return session.scalar(query)
-
-
-def _latest_price(session: Session, athlete_id: int) -> Decimal | None:
-    price = session.scalar(
-        select(Price)
-        .where(Price.athlete_id == athlete_id)
-        .order_by(Price.id.desc())
-        .limit(1)
-    )
-    return price.price if price else None
-
-
-def _latest_fund_price(session: Session, fund_id: int) -> Decimal | None:
-    price = session.scalar(
-        select(FundPrice)
-        .where(FundPrice.fund_id == fund_id)
-        .order_by(FundPrice.id.desc())
-        .limit(1)
-    )
-    return price.price if price else None
-
-
-@dataclass
-class Asset:
-    """Whatever is being traded, resolved to one shape so the cash, ledger and
-    holding logic below never needs to know which kind it is."""
-
-    type: str
-    name: str
-    price: Decimal
-    athlete_id: int | None = None
-    fund_id: int | None = None
-
-    @property
-    def is_fund(self) -> bool:
-        return self.type == AssetType.fund.value
-
-
 def _require_asset(
     session: Session, athlete_id: int | None, fund_id: int | None
 ) -> Asset:
-    """Resolve exactly one of athlete_id/fund_id to a priced asset."""
-    if (athlete_id is None) == (fund_id is None):
-        raise HTTPException(
-            status_code=400, detail="pass exactly one of athlete_id or fund_id"
-        )
-
-    if fund_id is not None:
-        fund = session.get(Fund, fund_id)
-        if fund is None:
-            raise HTTPException(status_code=404, detail="fund not found")
-        price = _latest_fund_price(session, fund_id)
-        if price is None:
-            raise HTTPException(status_code=404, detail="no price for fund")
-        return Asset(AssetType.fund.value, fund.name, price, fund_id=fund_id)
-
-    athlete = session.get(Athlete, athlete_id)
-    if athlete is None:
-        raise HTTPException(status_code=404, detail="athlete not found")
-    price = _latest_price(session, athlete_id)
-    if price is None:
-        raise HTTPException(status_code=404, detail="no price for athlete")
-    return Asset(AssetType.athlete.value, athlete.name, price, athlete_id=athlete_id)
+    """resolve_asset, with its TradeError rendered as a status code."""
+    try:
+        return resolve_asset(session, athlete_id, fund_id)
+    except TradeError as exc:
+        status = 404 if "not found" in str(exc) or "no price" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from None
 
 
 def _holding_response(holding: Holding | None) -> dict:
@@ -151,50 +56,25 @@ def buy(
     user: User = Depends(get_current_user),
 ):
     asset = _require_asset(session, athlete_id, fund_id)
-    price = asset.price
-    # locked before the cash is read, so the check below cannot go stale
-    portfolio = _get_portfolio(session, user, for_update=True)
-    cost = _money(price * quantity)
-
-    if cost > portfolio.cash:
-        raise HTTPException(status_code=400, detail="insufficient funds")
+    # locked before the cash is read, so the guard inside execute_trade cannot
+    # go stale under a concurrent trade or an order filling on this tick
+    portfolio = get_portfolio(session, user.id, for_update=True)
 
     try:
-        portfolio.cash = _money(portfolio.cash - cost)
-        trade = Trade(
-            user_id=user.id,
-            asset_type=asset.type,
-            athlete_id=asset.athlete_id,
-            fund_id=asset.fund_id,
-            side=Side.buy,
-            quantity=quantity,
-            price=price,
+        trade, holding = execute_trade(
+            session, portfolio, asset, Side.buy, quantity, asset.price
         )
-        session.add(trade)
-
-        holding = _get_holding(session, user, asset)
-        if holding is None:
-            holding = Holding(
-                user_id=user.id,
-                asset_type=asset.type,
-                athlete_id=asset.athlete_id,
-                fund_id=asset.fund_id,
-                quantity=quantity,
-                avg_cost=price,
-            )
-            session.add(holding)
-        else:
-            total_cost = holding.quantity * holding.avg_cost + quantity * price
-            holding.quantity += quantity
-            holding.avg_cost = _money(total_cost / holding.quantity)
-
         session.commit()
+    except TradeError as exc:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         session.rollback()
         raise
 
     return {
         "cash": float(portfolio.cash),
+        "available_cash": float(available_cash(portfolio)),
         "holding": _holding_response(holding),
         "trade_id": trade.id,
     }
@@ -209,48 +89,35 @@ def sell(
     user: User = Depends(get_current_user),
 ):
     asset = _require_asset(session, athlete_id, fund_id)
-    price = asset.price
-    # locked before the holding is read, so the shares check cannot go stale
-    portfolio = _get_portfolio(session, user, for_update=True)
-
-    # _get_holding is user-scoped, so another user's position in this asset
-    # reads as nothing to sell rather than as something sellable
-    holding = _get_holding(session, user, asset)
-    if holding is None or quantity > holding.quantity:
-        raise HTTPException(status_code=400, detail="insufficient shares")
+    # locked before the holding is read, for the same reason as the buy above
+    portfolio = get_portfolio(session, user.id, for_update=True)
 
     try:
-        portfolio.cash = _money(portfolio.cash + _money(price * quantity))
-        trade = Trade(
-            user_id=user.id,
-            asset_type=asset.type,
-            athlete_id=asset.athlete_id,
-            fund_id=asset.fund_id,
-            side=Side.sell,
-            quantity=quantity,
-            price=price,
+        trade, holding = execute_trade(
+            session, portfolio, asset, Side.sell, quantity, asset.price
         )
-        session.add(trade)
-        # avg_cost is the cost basis of the shares still held, so it doesn't move.
-        holding.quantity -= quantity
         session.commit()
+    except TradeError as exc:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         session.rollback()
         raise
 
     return {
         "cash": float(portfolio.cash),
+        "available_cash": float(available_cash(portfolio)),
         "holding": _holding_response(holding),
         "trade_id": trade.id,
     }
 
 
 @router.get("")
-def get_portfolio(
+def read_portfolio(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    portfolio = _get_portfolio(session, user)
+    portfolio = get_portfolio(session, user.id)
     session.commit()  # persist the row if this was the first read
 
     holdings = []
@@ -262,14 +129,14 @@ def get_portfolio(
         if holding.fund_id is not None:
             fund = session.get(Fund, holding.fund_id)
             name = fund.name if fund else "unknown fund"
-            price = _latest_fund_price(session, holding.fund_id)
+            price = latest_fund_price(session, holding.fund_id)
         else:
             athlete = session.get(Athlete, holding.athlete_id)
             name = athlete.name if athlete else "unknown athlete"
-            price = _latest_price(session, holding.athlete_id)
+            price = latest_price(session, holding.athlete_id)
         if price is None:
             continue
-        market_value = _money(price * holding.quantity)
+        market_value = money(price * holding.quantity)
         total_market_value += market_value
         holdings.append(
             {
@@ -280,11 +147,12 @@ def get_portfolio(
                 "fund_id": holding.fund_id,
                 "name": name,
                 "quantity": holding.quantity,
+                "reserved_quantity": holding.reserved_quantity,
                 "avg_cost": float(holding.avg_cost),
                 "current_price": float(price),
                 "market_value": float(market_value),
                 "unrealized_pl": float(
-                    _money((price - holding.avg_cost) * holding.quantity)
+                    money((price - holding.avg_cost) * holding.quantity)
                 ),
             }
         )
@@ -295,7 +163,11 @@ def get_portfolio(
     bonds = active_principal(session, user.id)
     return {
         "cash": float(portfolio.cash),
+        # a reservation earmarks cash, it does not spend it, so total_value is
+        # deliberately built from `cash` and is unmoved by placing an order
+        "reserved_cash": float(portfolio.reserved_cash),
+        "available_cash": float(available_cash(portfolio)),
         "holdings": holdings,
         "bonds": {"active_principal": float(bonds)},
-        "total_value": float(_money(portfolio.cash + total_market_value + bonds)),
+        "total_value": float(money(portfolio.cash + total_market_value + bonds)),
     }

@@ -37,6 +37,7 @@ from app.norms import MIN_STD, baseline_price, get_sport_norms
 from app.models import (
     Athlete,
     AthleteStat,
+    Fund,
     GameLog,
     MarketAthleteState,
     MarketState,
@@ -314,6 +315,18 @@ def advance_game_day(session) -> dict[str, dict[str, float]]:
         session.rollback()
         logger.exception("bond settlement failed for day %s", day)
 
+    # Orders expire on the new day, after bonds: an order that expires today
+    # gets no more chances to fill, and its reservation goes back.
+    from app.orders import expire_due
+
+    try:
+        expired = expire_due(session, state.current_day)
+        if expired:
+            logger.info("expired %s orders on day %s", expired, state.current_day)
+    except Exception:
+        session.rollback()
+        logger.exception("order expiry failed for day %s", state.current_day)
+
     return results
 
 
@@ -362,8 +375,44 @@ def advance_price_tick(session, tick_index: int = 0) -> dict[str, float]:
     session.commit()
 
     # funds ride on the athletes above and never feed back into them
-    price_funds(session, priced)
+    fund_prices = price_funds(session, priced)
+
+    # Orders fill only once both are committed, so a triggered order trades
+    # against the same prices everyone else can already see. Imported here for
+    # the same reason as bonds below: app.orders reads Portfolio.
+    from app.orders import fill_triggered
+
+    try:
+        filled = fill_triggered(session, _as_money(priced), _fund_ids(session, fund_prices))
+        if filled:
+            logger.info("tick %s filled orders: %s", state.current_step, filled)
+    except Exception:
+        # the prices are already committed and public; an order engine fault
+        # must not unwind them or stop the next tick
+        session.rollback()
+        logger.exception("order fill pass failed for step %s", state.current_step)
+
     return prices
+
+
+def _as_money(priced: dict[int, float]) -> dict[int, Decimal]:
+    """Tick prices as the Decimals a trigger is compared against, rounded the
+    same way the Price rows were -- otherwise a trigger sitting exactly on the
+    tick price would compare against a float that is a hair off it."""
+    return {aid: Decimal(f"{value:.2f}") for aid, value in priced.items()}
+
+
+def _fund_ids(session, fund_prices: dict[str, float]) -> dict[int, Decimal]:
+    """price_funds reports by code; the orders reference funds by id."""
+    if not fund_prices:
+        return {}
+    codes = session.execute(select(Fund.id, Fund.code)).all()
+    by_code = {code: fund_id for fund_id, code in codes}
+    return {
+        by_code[code]: Decimal(f"{value:.2f}")
+        for code, value in fund_prices.items()
+        if code in by_code
+    }
 
 
 def prune_price_history(session) -> int:

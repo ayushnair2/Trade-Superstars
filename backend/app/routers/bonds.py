@@ -20,7 +20,7 @@ from app.config import BOND_EARLY_PENALTY, BOND_FACE, BOND_TERMS
 from app.db import get_session
 from app.models import BondKind, BondPosition, BondStatus, BondTransaction, User
 from app.pricing import get_state
-from app.routers.portfolio import _get_portfolio
+from app.trading import available_cash, get_portfolio
 
 router = APIRouter(prefix="/bonds", tags=["bonds"])
 
@@ -51,8 +51,9 @@ def buy(
 
     # the same lock the trade path takes, for the same reason: the funds check
     # below must not be able to go stale under a concurrent buy
-    portfolio = _get_portfolio(session, user, for_update=True)
-    if cost > portfolio.cash:
+    portfolio = get_portfolio(session, user.id, for_update=True)
+    # available, not raw: cash promised to open buy orders is already spoken for
+    if cost > available_cash(portfolio):
         raise HTTPException(status_code=400, detail="insufficient funds")
 
     try:
@@ -104,7 +105,7 @@ def redeem(
     user: User = Depends(get_current_user),
 ):
     day = get_state(session).current_day
-    portfolio = _get_portfolio(session, user, for_update=True)
+    portfolio = get_portfolio(session, user.id, for_update=True)
 
     # scoped to the caller, and someone else's position reads as missing rather
     # than forbidden, so the endpoint cannot be used to probe which ids exist

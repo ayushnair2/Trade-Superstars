@@ -201,3 +201,13 @@ BOND_FACE = 100
 BOND_TERMS = {5: 0.0010, 20: 0.0015, 50: 0.0020}
 # Redeeming before maturity returns the principal less this.
 BOND_EARLY_PENALTY = 0.02
+
+
+# --- orders ----------------------------------------------------------------
+# How many game-days an order lives for when the caller doesn't say. Orders
+# are a standing instruction, not a permanent one: an untouched order that
+# outlives the form it was placed on is almost never what the trader meant.
+ORDER_EXPIRY_DAYS = 10
+# Upper bound on a per-order override, so a reservation cannot be parked
+# against a user's cash indefinitely.
+ORDER_MAX_EXPIRY_DAYS = 60

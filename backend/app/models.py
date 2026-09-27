@@ -126,6 +126,9 @@ class Holding(Base):
     )
     fund_id: Mapped[int | None] = mapped_column(ForeignKey("funds.id"), nullable=True)
     quantity: Mapped[int] = mapped_column(default=0)
+    # shares promised to open sell orders. Never sold from directly: it is a
+    # claim on `quantity`, so what is actually sellable is the difference.
+    reserved_quantity: Mapped[int] = mapped_column(default=0)
     avg_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
 
     athlete: Mapped["Athlete"] = relationship(back_populates="holding")
@@ -139,6 +142,12 @@ class Portfolio(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
     cash: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("100000"))
+    # cash promised to open buy orders. Held inside `cash` rather than moved
+    # out of it, so the ledger stays a single balance and only what is
+    # spendable changes -- available cash is cash minus this.
+    reserved_cash: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), default=Decimal("0")
+    )
 
 
 class AthleteStat(Base):
@@ -398,4 +407,69 @@ class BondTransaction(Base):
     day: Mapped[int] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
+    )
+
+
+class OrderType(str, enum.Enum):
+    limit = "limit"
+    stop = "stop"
+
+
+class OrderStatus(str, enum.Enum):
+    open = "open"
+    filled = "filled"
+    cancelled = "cancelled"
+    expired = "expired"
+    # the trigger was hit but the trade could not be made -- see failure_reason
+    failed = "failed"
+
+
+class Order(Base):
+    """A standing instruction to trade when the price crosses a trigger.
+
+    Which side of the trigger fills depends on the pair: a limit waits for a
+    better price than now (buy below, sell above), a stop waits for a worse one
+    (buy above, sell below). The fill happens at the tick price that crossed
+    the trigger, not at the trigger itself -- the market does not owe anyone
+    the price they asked for.
+    """
+
+    __tablename__ = "orders"
+    __table_args__ = (
+        CheckConstraint(ONE_ASSET, name="ck_order_one_asset"),
+        # the engine scans open orders every tick and nothing else
+        Index("ix_orders_open", "status", "athlete_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    asset_type: Mapped[str] = mapped_column(String(10), default=AssetType.athlete.value)
+    athlete_id: Mapped[int | None] = mapped_column(
+        ForeignKey("athletes.id"), nullable=True
+    )
+    fund_id: Mapped[int | None] = mapped_column(ForeignKey("funds.id"), nullable=True)
+    side: Mapped[Side] = mapped_column(Enum(Side, name="trade_side"))
+    order_type: Mapped[str] = mapped_column(String(10))
+    trigger_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    quantity: Mapped[int] = mapped_column()
+    # what this order holds back while it waits: cash for a buy, nothing for a
+    # sell (a sell reserves shares on the holding instead)
+    reserved_amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), default=Decimal("0")
+    )
+    status: Mapped[str] = mapped_column(
+        String(10), default=OrderStatus.open.value, index=True
+    )
+    created_day: Mapped[int] = mapped_column()
+    expires_day: Mapped[int] = mapped_column(index=True)
+    fill_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    trade_id: Mapped[int | None] = mapped_column(
+        ForeignKey("trades.id"), nullable=True
+    )
+    failure_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
