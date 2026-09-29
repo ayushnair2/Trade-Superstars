@@ -1,7 +1,7 @@
 """Load game logs for any adapter that implements fetch_game_logs.
 
 The NBA and NFL keep bespoke loaders because their sources are bulk frames;
-every other sport goes through here.
+every other sport goes through here
 """
 
 import statistics
