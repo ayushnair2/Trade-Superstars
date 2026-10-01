@@ -1,5 +1,6 @@
 import { money } from '../format'
 import type { Portfolio } from '../types'
+import type { AuthUser } from '../useAuth'
 
 export type Tab = 'market' | 'heatmap' | 'portfolio' | 'leaderboard'
 
@@ -8,7 +9,7 @@ type Props = {
   onTab: (tab: Tab) => void
   portfolio: Portfolio | null
   stale: boolean
-  user: { email: string } | null
+  user: AuthUser | null
   onLogin: () => void
   onLogout: () => void
   onOpenSettings: () => void

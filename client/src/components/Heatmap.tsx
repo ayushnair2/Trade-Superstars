@@ -89,18 +89,21 @@ function groupsOf(leaves: Leaf[]): string[] {
   return [...known, ...extra]
 }
 
+/** One node of the treemap input: the root, a sport group, or a single block. */
+type TreeNode = { group?: string; leaf?: Leaf; children?: TreeNode[] }
+
 /** d3-hierarchy computes the rectangles; everything else here is plain divs. */
 function packGroup(leaves: Leaf[], w: number, h: number) {
-  const root = hierarchy<{ children?: Leaf[]; leaf?: Leaf }>(
-    { children: leaves.map((leaf) => ({ leaf })) },
-    (d) => d.children,
-  ).sum((d) => d.leaf?.price ?? 0)
-  treemap<{ children?: Leaf[]; leaf?: Leaf }>()
+  const root = hierarchy<TreeNode>({ children: leaves.map((leaf) => ({ leaf })) }).sum(
+    (d) => d.leaf?.price ?? 0,
+  )
+  // read from what treemap returns: only its type carries x0/y0/x1/y1
+  return treemap<TreeNode>()
     .tile(treemapSquarify)
     .size([w, h])
     .paddingInner(GUTTER)
     .round(true)(root)
-  return root.leaves()
+    .leaves()
 }
 
 function computeLayout(
@@ -139,25 +142,22 @@ function computeLayout(
   }
 
   // desktop: one hierarchy, so d3 packs the groups against each other too
-  const root = hierarchy<{ group?: string; children?: unknown[]; leaf?: Leaf }>(
-    {
-      children: order.map((group) => ({
-        group,
-        children: leaves
-          .filter((leaf) => leaf.group === group)
-          .map((leaf) => ({ leaf })),
-      })),
-    },
-    (d) => d.children as { group?: string; leaf?: Leaf }[] | undefined,
-  ).sum((d) => d.leaf?.price ?? 0)
-
-  treemap<{ group?: string; children?: unknown[]; leaf?: Leaf }>()
+  const root = treemap<TreeNode>()
     .tile(treemapSquarify)
     .size([width, height])
     .paddingOuter(GUTTER)
     .paddingTop(HEADER)
     .paddingInner(GUTTER)
-    .round(true)(root)
+    .round(true)(
+      hierarchy<TreeNode>({
+        children: order.map((group) => ({
+          group,
+          children: leaves
+            .filter((leaf) => leaf.group === group)
+            .map((leaf) => ({ leaf })),
+        })),
+      }).sum((d) => d.leaf?.price ?? 0),
+    )
 
   for (const node of root.children ?? []) {
     groups.push({
