@@ -25,6 +25,7 @@ from app.config import (
     PRICE_HISTORY_KEEP,
     PRICE_Z_SCALE,
     MARKET_SEED,
+    MIN_GAMES_FOR_RESAMPLE,
     MOMENTUM,
     OVERREACTION,
     PRICE_FLOOR,
@@ -67,7 +68,8 @@ def move_weight(athlete: Athlete) -> float:
 
 
 class AthleteStream:
-    """An athlete's perf_score over time: real games first, then simulated."""
+    """An athlete's perf_score over time: real games first, then resampled
+    from them (or simulated, when there are too few to resample)."""
 
     def __init__(
         self,
@@ -99,7 +101,13 @@ class AthleteStream:
     def perf_at(self, seed: int, step: int) -> float:
         if step < len(self.games):
             return self.games[step]
-        return _rng(seed, self.athlete_id, step, "perf").gauss(self.mean, self.std)
+        rng = _rng(seed, self.athlete_id, step, "perf")
+        if len(self.games) >= MIN_GAMES_FOR_RESAMPLE:
+            # past the real games, draw one of them: the stream keeps the
+            # athlete's actual shape -- skew, floor of zero, real ceiling --
+            # where a normal curve invents games they could never have had
+            return rng.choice(self.games)
+        return rng.gauss(self.mean, self.std)
 
     def form_at(self, seed: int, step: int) -> float:
         start = max(0, step - FORM_WINDOW + 1)

@@ -42,6 +42,10 @@ PRICE_BASE = 120.0
 PRICE_Z_SCALE = 30.0
 # How many recent steps count as "current form".
 FORM_WINDOW = 5
+# Below this many real games an athlete keeps the Gaussian draw once their
+# games run out: resampling from a handful of games would cycle through
+# the same few values and freeze their form again.
+MIN_GAMES_FOR_RESAMPLE = 10
 # The market overreacts to form: >1 amplifies the gap vs baseline.
 OVERREACTION = 1.5
 # Per-step randomness in how hard the market overreacts.
