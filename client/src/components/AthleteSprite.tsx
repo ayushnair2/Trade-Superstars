@@ -7,7 +7,7 @@ const SPRITE_ASSETS = import.meta.glob('../assets/*.png', {
   import: 'default',
 }) as Record<string, string>
 
-/** Look up a sprite by file name, e.g. "ohtani-sprite.png". */
+/** Look up a sprite by file name, e.g. "batter-sprite.png". */
 export function spriteAsset(fileName: string): string | undefined {
   return SPRITE_ASSETS[`../assets/${fileName}`]
 }
@@ -61,9 +61,12 @@ export default function AthleteSprite({
         backgroundImage: `url(${src})`,
         // one frame fills the box; stepping background-position walks the strip
         backgroundSize: `${frameCount * 100}% 100%`,
+        // jump-none, not the default jump-end: frame k sits at k/(n-1) of the
+        // 0%..100% range, and only jump-none lands there. jump-end lands on
+        // k/n, which shows two half-frames side by side on every step but one.
         animation:
           frameCount > 1
-            ? `sprite-frames ${frameDurationMs}ms steps(${frameCount}) infinite, sprite-bob 1.8s steps(2) infinite`
+            ? `sprite-frames ${frameDurationMs}ms steps(${frameCount}, jump-none) infinite, sprite-bob 1.8s steps(2) infinite`
             : 'sprite-bob 1.8s steps(2) infinite',
       }}
     />

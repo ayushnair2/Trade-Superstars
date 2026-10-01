@@ -3,11 +3,17 @@ import { useEffect } from 'react'
 import AthleteSprite, { spriteAsset } from './AthleteSprite'
 import Ticker from './Ticker'
 
-const SPRITE_HEIGHT = 176
+// 3x the 48px art: a whole multiple keeps every pixel the same size. 4x
+// crowds the title just above the 900px breakpoint, where it drops to 96px.
+const SPRITE_HEIGHT = 144
+// AthleteSprite times the whole loop, so these are 6 frames at ~120ms and
+// ~140ms each -- the dribble a touch slower than the swing.
+const BATTER_LOOP_MS = 6 * 120
+const HOOPER_LOOP_MS = 6 * 140
 
 // Named so it is obvious which asset backs which slot.
-const ohtaniSprite = spriteAsset('ohtani-sprite.png')
-const lebronSprite = spriteAsset('lebron-sprite.png')
+const batterSprite = spriteAsset('batter-sprite.png')
+const hooperSprite = spriteAsset('hooper-sprite.png')
 
 type Props = {
   onPlay: () => void
@@ -30,11 +36,11 @@ export default function Landing({ onPlay }: Props) {
       <div className="landing-stage">
         <div className="landing-sprite">
           <AthleteSprite
-            src={ohtaniSprite}
-            alt="Shohei Ohtani pixel sprite"
-            label="OHTANI"
-            frameCount={4}
-            frameDurationMs={900}
+            src={batterSprite}
+            alt="Pixel baseball player swinging"
+            label="BATTER"
+            frameCount={6}
+            frameDurationMs={BATTER_LOOP_MS}
             height={SPRITE_HEIGHT}
           />
         </div>
@@ -53,11 +59,11 @@ export default function Landing({ onPlay }: Props) {
 
         <div className="landing-sprite">
           <AthleteSprite
-            src={lebronSprite}
-            alt="LeBron James pixel sprite"
-            label="LEBRON"
-            frameCount={4}
-            frameDurationMs={1200}
+            src={hooperSprite}
+            alt="Pixel basketball player dribbling"
+            label="HOOPER"
+            frameCount={6}
+            frameDurationMs={HOOPER_LOOP_MS}
             height={SPRITE_HEIGHT}
           />
         </div>

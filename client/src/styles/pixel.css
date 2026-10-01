@@ -580,10 +580,12 @@ body {
     font-size: 28px;
   }
 
+  /* square, because the frames are, and a whole multiple of the 48px art so
+     every source pixel stays an even 2x2 block */
   .sprite,
   .sprite-placeholder {
-    width: 110px !important;
-    height: 132px !important;
+    width: 96px !important;
+    height: 96px !important;
   }
 }
 
@@ -595,12 +597,6 @@ body {
 
   .landing-title {
     font-size: 22px;
-  }
-
-  .sprite,
-  .sprite-placeholder {
-    width: 88px !important;
-    height: 100px !important;
   }
 }
 
