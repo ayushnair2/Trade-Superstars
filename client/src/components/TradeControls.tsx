@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { authFetch } from '../api'
+import { money } from '../format'
 import { evaluateTrade, muteWarnings, mutedWarnings, type Warning } from '../riskRules'
 import type { Portfolio, PriceRow, Selection } from '../types'
 import RiskDialog from './RiskDialog'
@@ -41,6 +42,8 @@ export default function TradeControls({
 
   const qty = Number(quantity)
   const valid = Number.isInteger(qty) && qty > 0
+  // an estimate: the trade fills at the price when it lands, which can tick first
+  const estimate = valid && athlete.price !== null ? money(athlete.price * qty) : '--'
 
   function trade(side: 'buy' | 'sell') {
     if (!signedIn) {
@@ -104,6 +107,11 @@ export default function TradeControls({
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
         />
+      </div>
+
+      <div className="kv">
+        <span>EST. TOTAL</span>
+        <span className="kv-value">{estimate}</span>
       </div>
 
       <div className="btn-row">
